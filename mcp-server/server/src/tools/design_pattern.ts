@@ -95,7 +95,8 @@ export function registerDesignPatternTools(server: McpServer) {
       "the hosting checks (non-clean wall, behind wardrobe/cabinets/fridge/boiler, door frame and swing, windows, wet zones, collisions) with slide/mirror fallbacks, and writes " +
       "<pattern>_REPLICATE_<unit>.json in the proposal shape of apply_electrical_design (every placement carries the unit's level as Schedule Level). Returns counts per status and the " +
       "dropped points with reasons. Get the engineer's approval, then apply_electrical_design with the proposal path.",
-    { patternPath: z.string(), snapshotPath: z.string(), targets: z.array(z.object({ ...selector, id: z.string().optional(), mirrored: z.boolean().optional() })).optional().describe("One selector per target unit"),
+    { patternPath: z.string().describe("Pattern JSON; or give patternPaths for one pattern per apartment type"), patternPaths: z.array(z.string()).optional()
+        .describe("Several patterns (one template apartment per type); each target gets the pattern whose template apartment has the same type label"), snapshotPath: z.string(), targets: z.array(z.object({ ...selector, id: z.string().optional(), mirrored: z.boolean().optional() })).optional().describe("One selector per target unit"),
       targetsAuto: z.object({ levelName: z.string().optional(), sameTypeOnly: z.boolean().optional().default(true), apartmentPattern: z.string().optional() }).optional()
         .describe("Instead of targets: every apartment found by list_design_units (optionally on one level), excluding the template, same type as the template by default"),
       detectMirror: z.boolean().optional().default(true).describe("Flip left/right offsets for targets whose room layout mirrors the template"),
@@ -104,24 +105,29 @@ export function registerDesignPatternTools(server: McpServer) {
       try {
         const cfg = loadOfficeConfig(a.officeConfigPath);
         const snap = loadSnapshot(a.snapshotPath);
-        const pattern = JSON.parse(fs.readFileSync(a.patternPath, "utf8")) as Pattern & { templateRoomKeys?: string[] };
+        type StoredPattern = Pattern & { templateRoomKeys?: string[] };
+        const patterns: StoredPattern[] = (a.patternPaths?.length ? a.patternPaths : [a.patternPath]).map((p) => JSON.parse(fs.readFileSync(p, "utf8")));
+        const allApts = listApartments(snap, cfg, { apartmentPattern: a.targetsAuto?.apartmentPattern });
+        const typeOf = (roomKeys: string[] | undefined) => allApts.find((x) => roomKeys?.some((k) => x.roomKeys.includes(k)))?.type;
+        const patternByType = new Map<string | undefined, StoredPattern>();
+        for (const p of patterns) patternByType.set(typeOf(p.templateRoomKeys), p);
         let targets = (a.targets ?? []) as (UnitSelector & { mirrored?: boolean })[];
-        const templateRooms = snap.rooms.filter((r) => pattern.templateRoomKeys?.includes(r.key));
         if (a.targetsAuto) {
-          const apts = listApartments(snap, cfg, { levelName: a.targetsAuto.levelName, apartmentPattern: a.targetsAuto.apartmentPattern });
-          const tplApt = apts.find((x) => x.roomKeys.some((k) => pattern.templateRoomKeys?.includes(k)));
+          const apts = a.targetsAuto.levelName ? allApts.filter((x) => (x.level ?? "").toLowerCase().includes(a.targetsAuto!.levelName!.toLowerCase())) : allApts;
+          const templateIds = new Set(patterns.map((p) => allApts.find((x) => x.roomKeys.some((k) => p.templateRoomKeys?.includes(k)))?.id));
           targets = apts
-            .filter((x) => x !== tplApt && (!a.targetsAuto!.sameTypeOnly || !tplApt || x.type === tplApt.type))
+            .filter((x) => !templateIds.has(x.id) && (!a.targetsAuto!.sameTypeOnly || patternByType.has(x.type)))
             .map((x) => ({ id: x.id, roomKeys: x.roomKeys }));
-          if (!targets.length) return text({ error: "targetsAuto found no target apartments", apartments: apts.map((x) => ({ id: x.id, type: x.type, level: x.level })) });
+          if (!targets.length) return text({ error: "targetsAuto found no target apartments", templateTypes: [...patternByType.keys()], apartments: apts.map((x) => ({ id: x.id, type: x.type, level: x.level })) });
         }
         if (!targets.length) return text({ error: "give targets or targetsAuto" });
         const all: Placed[] = []; const placements: any[] = []; const rooms: any[] = []; const perUnit: any[] = []; const unitsRooms: { unit: string; level?: string; rooms: any[] }[] = [];
         for (const t of targets) {
-          if (t.mirrored === undefined && a.detectMirror && templateRooms.length) {
-            const probe = buildUnit(snap, t, cfg);
-            t.mirrored = detectMirrored(templateRooms, probe.rooms, cfg).mirrored;
-          }
+          const probe = buildUnit(snap, t, cfg);
+          const targetType = typeOf(probe.rooms.map((r) => r.key));
+          const pattern = patternByType.get(targetType) ?? patterns[0];
+          const templateRooms = snap.rooms.filter((r) => pattern.templateRoomKeys?.includes(r.key));
+          if (t.mirrored === undefined && a.detectMirror && templateRooms.length) t.mirrored = detectMirrored(templateRooms, probe.rooms, cfg).mirrored;
           const b = buildUnit(snap, t, cfg);
           const existing: Pt3[] = b.unit.designed.map((d) => d.point);
           const constraints = hostingConstraints(cfg, existing);
@@ -130,11 +136,11 @@ export function registerDesignPatternTools(server: McpServer) {
           all.push(...placed);
           placements.push(...toPlacements(placed, b.levelName, b.unit.id));
           rooms.push(...b.rooms.map((r) => ({ key: r.key, room: `${r.number} ${r.name}`, level: r.level, roomType: b.roomTypes[r.key], areaM2: r.areaM2 })));
-          perUnit.push({ unit: b.unit.id, level: b.levelName, mirrored: !!t.mirrored, ...summarize(placed), warnings: b.warnings });
+          perUnit.push({ unit: b.unit.id, level: b.levelName, type: targetType, pattern: pattern.templateUnitId, mirrored: !!t.mirrored, ...summarize(placed), warnings: b.warnings });
           unitsRooms.push({ unit: b.unit.id, level: b.levelName, rooms: b.rooms });
         }
         const out = a.outputPath ?? a.patternPath.replace(/\.json$/i, "") + "_REPLICATE.json";
-        fs.writeFileSync(out, JSON.stringify({ kind: "replication", patternPath: a.patternPath, snapshotPath: a.snapshotPath, createdAt: new Date().toISOString(), rooms, placements, details: all }, null, 1), "utf8");
+        fs.writeFileSync(out, JSON.stringify({ kind: "replication", patternPaths: a.patternPaths ?? [a.patternPath], snapshotPath: a.snapshotPath, createdAt: new Date().toISOString(), rooms, placements, details: all }, null, 1), "utf8");
         const previewPath = out.replace(/\.json$/i, "") + ".html";
         fs.writeFileSync(previewPath, replicationPreviewHtml(snap, unitsRooms, all), "utf8");
         return text({ proposalPath: out, previewPath, placements: placements.length, ...summarize(all), perUnit });

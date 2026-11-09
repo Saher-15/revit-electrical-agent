@@ -221,6 +221,13 @@ test("tools: read → learn → replicate through MCP, proposal + HTML preview w
   assert.ok(proposal.placements.every((p) => p.scheduleLevel === "04" && p.location && p.hostMode));
   const html = fs.readFileSync(rep.previewPath, "utf8");
   assert.ok(html.includes("<svg") && html.includes("apt-04"));
+  const auto = await call("replicate_design_pattern", { patternPath: learned.patternPath, snapshotPath: snapPath, targetsAuto: {} });
+  assert.equal(auto.perUnit.length, 1, JSON.stringify(auto));
+  assert.equal(auto.perUnit[0].unit, "04");
+  assert.equal(auto.perUnit[0].type, "A");
+  const units = await call("list_design_units", { snapshotPath: snapPath });
+  assert.equal(units.apartments, 2);
+  assert.equal(units.rows.find((r) => r.id === "03").devices, 7);
   const chk = await call("check_hosting", { snapshotPath: snapPath, roomFilter: "03-", role: "socket", x: 6000, y: 2950, z: 300 });
   assert.equal(chk.check, "behind-furniture");
 });

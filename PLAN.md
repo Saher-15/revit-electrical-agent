@@ -38,7 +38,7 @@ Acceptance
 ## Phase 3 — Apartment types, mirroring, whole building (◐)
 Deliverables
 1. ☑ Mirrored-apartment detection (room-type layout under reflection about X/Y) → `mirrored` auto-flag in `replicate_design_pattern` (`detectMirror`).
-2. ☑ `list_design_units`: apartments from room-number prefixes, type labels A/B/C from room-type signature + area; `targetsAuto` replicates to every apartment of the template's type. ☐ one pattern per type with automatic pairing.
+2. ☑ `list_design_units`: apartments from room-number prefixes, type labels A/B/C from room-type signature + area; `targetsAuto` replicates to every apartment of the template's type. ☑ `patternPaths`: one pattern per apartment type, each target paired with the pattern of its type.
 3. Fallback to room-type defaults (`room-rules.md`) when an anchor is missing, reported per point.
 4. Circuits: group replicated devices per apartment into circuits with `create_electrical_circuit` to the apartment panel (separate approval).
 5. Comparison workbook: Claude's replication vs the engineer's manual floors (counts per role per room type, moved/dropped ratio, `review_model` errors) — extends the existing `compare03` sheet.
