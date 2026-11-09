@@ -12,7 +12,7 @@ const { readMarkups, pdfText, textNear } = await import("../build/production/pdf
 const { mergeTasks, writeTaskFiles, loadTasks, taskJsonPath, replyText } = await import("../build/production/tasks.js");
 const { documentText } = await import("../build/production/docs.js");
 const { saveProjectData, loadProjectData, projectPaths, listDocuments } = await import("../build/production/project.js");
-const { markupPdf, instructionsPdf, docx } = await import("./fixtures.mjs");
+const { markupPdf, instructionsPdf, docx, noisyMarkupPdf } = await import("./fixtures.mjs");
 
 const pdfPath = path.join(home, "review A3.pdf");
 fs.writeFileSync(pdfPath, await markupPdf());
@@ -123,4 +123,24 @@ test("pdf text of the markup page", async () => {
   const pages = await pdfText(pdfPath);
   assert.equal(pages.length, 2);
   assert.match(pages[0].text, /Kitchen/);
+});
+
+test("skips Acrobat SHX text and empty stamps, keeps clouds without words, cleans line breaks", async () => {
+  const file = path.join(home, "noisy.pdf");
+  fs.writeFileSync(file, await noisyMarkupPdf());
+  const { markups, ignored, pages } = await readMarkups(file, {});
+  assert.deepEqual(ignored, { shxText: 4, emptyStamps: 1 });
+  assert.equal(markups.length, 3);
+  assert.equal(pages[0].markups, 3);
+  const stamp = markups.find((m) => m.kind === "Stamp");
+  assert.equal(stamp.comment, "Rejected: see comments");
+  const cloud = markups.find((m) => m.kind === "Cloud");
+  assert.equal(cloud.noText, true);
+  assert.equal(cloud.comment, "");
+  assert.match(cloud.nearbyText, /Corridor/);
+  const text = markups.find((m) => m.kind === "Text");
+  assert.equal(text.comment, "Split activities:\na) one\nb) two");
+  assert.equal(text.author, "craig");
+  assert.equal(text.noText, undefined);
+  assert.ok(markups.every((m) => !/\r/.test(m.comment)));
 });

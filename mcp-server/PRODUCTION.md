@@ -23,6 +23,7 @@ Documents\RevitClaude\tasks\<pdf name>\{markups.json, tasks.xlsx, REPLY.md}, Doc
 ## Limits
 - DWG text and block attributes are not exposed by the Revit API; block names come from the DWG symbol name.
 - PDF markups burned into the drawing (flattened) are not comments and cannot be read.
+- Acrobat's "AutoCAD SHX Text" annotations (drawing text recognised by Acrobat) and stamps without words are skipped and counted in `ignored`; clouds/boxes without words are kept with `noText: true`.
 - sheet_point_to_model assumes the PDF page is the title block (PDF printed from Revit). Other PDFs: give sheet mm directly.
 - Revit 2021 and older: sheet_point_to_model works for cropped plan views only.
 

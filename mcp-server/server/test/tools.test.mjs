@@ -12,7 +12,7 @@ const { McpServer } = await import("@modelcontextprotocol/sdk/server/mcp.js");
 const { Client } = await import("@modelcontextprotocol/sdk/client/index.js");
 const { InMemoryTransport } = await import("@modelcontextprotocol/sdk/inMemory.js");
 const { registerTools } = await import("../build/tools/register.js");
-const { markupPdf } = await import("./fixtures.mjs");
+const { markupPdf, noisyMarkupPdf } = await import("./fixtures.mjs");
 
 const server = new McpServer({ name: "t", version: "1" });
 await registerTools(server);
@@ -74,4 +74,15 @@ test("place_stamp refuses without approval or sheets, before reaching Revit", as
   assert.match(noSheets, /name the sheets/);
   const noImage = await call("place_stamp", { sheetNumbers: ["E-101"], engineerApproved: true, approvedBy: "x", approvalNote: "ok", imagePath: "/no/stamp.png" });
   assert.match(noImage, /not found/);
+});
+
+test("read_pdf_markups reports what it skipped", async () => {
+  const pdf = path.join(home, "noisy.pdf");
+  fs.writeFileSync(pdf, await noisyMarkupPdf());
+  const r = await call("read_pdf_markups", { file: pdf });
+  assert.deepEqual(r.ignored, { shxText: 4, emptyStamps: 1 });
+  assert.equal(r.markupCount, 3);
+  assert.equal(r.note, undefined);
+  assert.match(r.notes.join(" "), /SHX/);
+  assert.match(r.notes.join(" "), /noText/);
 });
