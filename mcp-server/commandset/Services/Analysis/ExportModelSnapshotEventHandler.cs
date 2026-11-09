@@ -83,6 +83,7 @@ namespace RevitMCPCommandSet.Services.Analysis
             ReadLevels(snap);
             ReadCategoryCounts(snap);
             ReadRooms(snap);
+            if (_req.IncludeArchitecture) ReadArchitecture(snap);
             ReadElements(snap);
             ReadRaceways(snap);
             ReadPanelsAndCircuits(snap);
@@ -111,11 +112,182 @@ namespace RevitMCPCommandSet.Services.Analysis
                 PanelCount = snap.Panels.Count,
                 CircuitCount = snap.Panels.Sum(p => p.Circuits.Count) + snap.CircuitsWithoutPanel.Count,
                 ElementsWithoutRoom = snap.Elements.Count(e => e.RoomKey == null && e.SpaceKey == null),
+                FurnitureCount = snap.Furniture.Count,
+                WindowCount = snap.Windows.Count,
+                WallCount = snap.Walls.Count,
                 Seconds = Math.Round(watch.Elapsed.TotalSeconds, 1),
             };
             return Ok(result, $"Snapshot of '{result.DocumentTitle}' written to {path} ({result.FileSizeKb} KB): " +
                               $"{result.RoomCount} rooms, {result.SpaceCount} spaces, {result.ElementCount} elements, " +
-                              $"{result.RacewayCount} raceway segments, {result.PanelCount} panels, {result.CircuitCount} circuits.");
+                              $"{result.RacewayCount} raceway segments, {result.PanelCount} panels, {result.CircuitCount} circuits, " +
+                              $"{result.FurnitureCount} furniture/fixtures, {result.WindowCount} windows, {result.WallCount} walls.");
+        }
+
+        // ---------------- architecture for the pattern engine (schemaVersion 2) ----------------
+
+        private static readonly BuiltInCategory[] FurnitureCategories =
+        {
+            BuiltInCategory.OST_Furniture, BuiltInCategory.OST_FurnitureSystems, BuiltInCategory.OST_Casework,
+            BuiltInCategory.OST_PlumbingFixtures, BuiltInCategory.OST_SpecialityEquipment, BuiltInCategory.OST_MechanicalEquipment,
+            BuiltInCategory.OST_GenericModel,
+        };
+
+        /// <summary>Furniture, windows and walls from the host model and every loaded link, in host coordinates (mm).</summary>
+        private void ReadArchitecture(ModelSnapshot snap)
+        {
+            AddArchitecture(snap, Doc, null, Transform.Identity);
+            foreach (var link in _links)
+                AddArchitecture(snap, link.Doc, link.Instance, link.Transform);
+        }
+
+        private void AddArchitecture(ModelSnapshot snap, Document doc, RevitLinkInstance link, Transform transform)
+        {
+            bool isHost = link == null;
+            string source = isHost ? "host" : link.Name;
+
+            foreach (var bic in FurnitureCategories)
+            {
+                // The host model's own generic models and mechanical equipment are usually ours, not the architect's.
+                if (isHost && (bic == BuiltInCategory.OST_GenericModel || bic == BuiltInCategory.OST_MechanicalEquipment)) continue;
+                IEnumerable<FamilyInstance> items;
+                try { items = new FilteredElementCollector(doc).OfCategory(bic).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>().ToList(); }
+                catch { continue; }
+                foreach (var fi in items)
+                {
+                    try
+                    {
+                        var bb = fi.get_BoundingBox(null);
+                        if (bb == null) continue;
+                        TransformBox(bb, transform, out XYZ min, out XYZ max);
+                        var center = (min + max) / 2;
+                        var level = doc.GetElement(fi.LevelId) as Level;
+                        if (!LevelMatches(level?.Name, min.Z, isHost)) continue;
+                        // Skip tiny or huge things: hardware, and whole-floor generic models.
+                        double sizeX = max.X - min.X, sizeY = max.Y - min.Y;
+                        if (Math.Max(sizeX, sizeY) < ElectricalUtils.MmToFt(150) || Math.Min(sizeX, sizeY) > ElectricalUtils.MmToFt(15000)) continue;
+
+                        var lp = fi.Location as LocationPoint;
+                        var p = lp != null ? transform.OfPoint(lp.Point) : center;
+                        var f = new SnapshotFurniture
+                        {
+                            Id = fi.Id.GetValue(),
+                            Source = source,
+                            Category = fi.Category?.Name,
+                            BuiltInCategory = bic.ToString(),
+                            Family = fi.Symbol?.FamilyName,
+                            Type = fi.Symbol?.Name,
+                            Level = level?.Name,
+                            XyzMm = Pt(p),
+                            BboxMinMm = Pt(min),
+                            BboxMaxMm = Pt(max),
+                            HostId = fi.Host?.Id.GetValue(),
+                        };
+                        try { var facing = transform.OfVector(fi.FacingOrientation); f.Facing = new[] { Math.Round(facing.X, 4), Math.Round(facing.Y, 4) }; } catch { }
+                        // Room at the footprint centre, 500 mm above the bottom (wardrobes touch the ceiling, beds sit on the floor).
+                        FindRoom(new XYZ(center.X, center.Y, min.Z + ElectricalUtils.MmToFt(500)), min.Z, out string roomKey, out _);
+                        f.RoomKey = roomKey;
+                        snap.Furniture.Add(f);
+                    }
+                    catch (Exception ex) { Warnings.Add($"Furniture {fi.Id.GetValue()} skipped: {ex.Message}"); }
+                }
+            }
+
+            IEnumerable<FamilyInstance> windows;
+            try { windows = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Windows).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>().ToList(); }
+            catch { windows = Enumerable.Empty<FamilyInstance>(); }
+            foreach (var w in windows)
+            {
+                try
+                {
+                    if (!(w.Location is LocationPoint lp)) continue;
+                    var p = transform.OfPoint(lp.Point);
+                    var level = doc.GetElement(w.LevelId) as Level;
+                    if (!LevelMatches(level?.Name, p.Z, isHost)) continue;
+                    double widthFt = w.get_Parameter(BuiltInParameter.WINDOW_WIDTH)?.AsDouble() ?? 0;
+                    if (widthFt <= 0) widthFt = w.Symbol?.get_Parameter(BuiltInParameter.WINDOW_WIDTH)?.AsDouble() ?? 0;
+                    if (widthFt <= 0) widthFt = w.Symbol?.get_Parameter(BuiltInParameter.FAMILY_WIDTH_PARAM)?.AsDouble() ?? 0;
+                    double heightFt = w.get_Parameter(BuiltInParameter.WINDOW_HEIGHT)?.AsDouble() ?? 0;
+                    if (heightFt <= 0) heightFt = w.Symbol?.get_Parameter(BuiltInParameter.WINDOW_HEIGHT)?.AsDouble() ?? 0;
+                    if (heightFt <= 0) heightFt = w.Symbol?.get_Parameter(BuiltInParameter.FAMILY_HEIGHT_PARAM)?.AsDouble() ?? 0;
+                    double sillFt = w.get_Parameter(BuiltInParameter.INSTANCE_SILL_HEIGHT_PARAM)?.AsDouble() ?? 0;
+                    double levelZ = (level?.Elevation ?? 0) + transform.Origin.Z;
+                    var hand = transform.OfVector(w.HandOrientation);
+                    var facing = transform.OfVector(w.FacingOrientation);
+                    var sw = new SnapshotWindow
+                    {
+                        Id = w.Id.GetValue(),
+                        Source = source,
+                        Level = level?.Name,
+                        Family = w.Symbol?.FamilyName,
+                        Type = w.Symbol?.Name,
+                        XyzMm = Pt(new XYZ(p.X, p.Y, levelZ + sillFt)),
+                        WidthMm = Mm(widthFt),
+                        SillMm = Mm(sillFt),
+                        HeadMm = Mm(sillFt + heightFt),
+                        AlongWall = new[] { Math.Round(hand.X, 4), Math.Round(hand.Y, 4) },
+                        Facing = new[] { Math.Round(facing.X, 4), Math.Round(facing.Y, 4) },
+                    };
+                    // Rooms on both sides of the wall, 300 mm in, 1 m above the level.
+                    var keys = new List<string>();
+                    double inFt = ElectricalUtils.MmToFt(300);
+                    foreach (var side in new[] { facing, -facing })
+                    {
+                        FindRoom(new XYZ(p.X + side.X * inFt, p.Y + side.Y * inFt, levelZ + ElectricalUtils.MmToFt(1000)), levelZ, out string rk, out _);
+                        if (rk != null && !keys.Contains(rk)) keys.Add(rk);
+                    }
+                    if (keys.Count > 0) sw.RoomKeys = keys;
+                    snap.Windows.Add(sw);
+                }
+                catch (Exception ex) { Warnings.Add($"Window {w.Id.GetValue()} skipped: {ex.Message}"); }
+            }
+
+            IEnumerable<Wall> walls;
+            try { walls = new FilteredElementCollector(doc).OfClass(typeof(Wall)).Cast<Wall>().ToList(); }
+            catch { walls = Enumerable.Empty<Wall>(); }
+            foreach (var wall in walls)
+            {
+                try
+                {
+                    if (!(wall.Location is LocationCurve lc)) continue;
+                    var a = transform.OfPoint(lc.Curve.GetEndPoint(0));
+                    var b = transform.OfPoint(lc.Curve.GetEndPoint(1));
+                    var level = doc.GetElement(wall.LevelId) as Level;
+                    if (!LevelMatches(level?.Name, Math.Min(a.Z, b.Z), isHost)) continue;
+                    var sw = new SnapshotWall
+                    {
+                        Id = wall.Id.GetValue(),
+                        Source = source,
+                        Level = level?.Name,
+                        Type = wall.WallType?.Name ?? wall.Name,
+                        StartMm = Pt(a),
+                        EndMm = Pt(b),
+                        ThicknessMm = Mm(wall.Width),
+                    };
+                    var h = wall.get_Parameter(BuiltInParameter.WALL_USER_HEIGHT_PARAM)?.AsDouble();
+                    if (h.HasValue && h.Value > 0) sw.HeightMm = Mm(h.Value);
+                    try { sw.Function = wall.WallType?.Function.ToString(); } catch { }
+                    if (wall.CurtainGrid != null) sw.Function = "Curtain";
+                    snap.Walls.Add(sw);
+                }
+                catch (Exception ex) { Warnings.Add($"Wall {wall.Id.GetValue()} skipped: {ex.Message}"); }
+            }
+        }
+
+        private static void TransformBox(BoundingBoxXYZ bb, Transform transform, out XYZ min, out XYZ max)
+        {
+            var t = transform.Multiply(bb.Transform);
+            double minX = double.MaxValue, minY = double.MaxValue, minZ = double.MaxValue;
+            double maxX = double.MinValue, maxY = double.MinValue, maxZ = double.MinValue;
+            foreach (var x in new[] { bb.Min.X, bb.Max.X })
+            foreach (var y in new[] { bb.Min.Y, bb.Max.Y })
+            foreach (var z in new[] { bb.Min.Z, bb.Max.Z })
+            {
+                var c = t.OfPoint(new XYZ(x, y, z));
+                minX = Math.Min(minX, c.X); minY = Math.Min(minY, c.Y); minZ = Math.Min(minZ, c.Z);
+                maxX = Math.Max(maxX, c.X); maxY = Math.Max(maxY, c.Y); maxZ = Math.Max(maxZ, c.Z);
+            }
+            min = new XYZ(minX, minY, minZ);
+            max = new XYZ(maxX, maxY, maxZ);
         }
 
         // ---------------- document, levels, counts ----------------

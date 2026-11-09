@@ -44,6 +44,7 @@ export function registerApplyElectricalDesignTool(server: McpServer) {
         const size = Math.max(1, Math.min(50, args.batchSize));
         for (let i = 0; i < todo.length; i += size) {
           const batch = todo.slice(i, i + size);
+          // scheduleLevel (replication proposals) rides through to place_electrical_element.
           const data = batch.map(({ role, roomKey, ...rest }) => rest);
           let response: any;
           try {

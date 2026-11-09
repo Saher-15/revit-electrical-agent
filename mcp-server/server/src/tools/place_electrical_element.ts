@@ -38,6 +38,7 @@ export function registerPlaceElectricalElementTool(server: McpServer) {
               .describe("How to host the element"),
             hostElementId: z.number().optional().describe("Explicit host element id (ceiling, wall or floor)"),
             levelName: z.string().optional().describe("Level name; defaults to the level at or below Z"),
+            scheduleLevel: z.string().optional().describe("Level written to 'Schedule Level' after placement; default = the resolved level, '' leaves it unset"),
             rotation: z.number().optional().describe("Rotation about the vertical axis in degrees"),
             parameters: z
               .record(z.string())

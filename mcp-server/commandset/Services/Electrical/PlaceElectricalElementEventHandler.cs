@@ -152,8 +152,27 @@ namespace RevitMCPCommandSet.Services.Electrical
                 }
             }
 
+            SetScheduleLevel(instance, item, level, r);
+
             r.ElementId = instance.Id.GetValue();
             r.HostElementId = instance.Host?.Id.GetValue() ?? -1;
+        }
+
+        /// <summary>Schedule Level = the requested level (or the resolved one), so elements hosted on linked faces still schedule per floor.</summary>
+        private void SetScheduleLevel(FamilyInstance instance, ElectricalPlacementInfo item, Level level, PlacedElementInfo r)
+        {
+            if (item.ScheduleLevel != null && item.ScheduleLevel.Length == 0) return;
+            Level target = level;
+            if (!string.IsNullOrWhiteSpace(item.ScheduleLevel))
+                target = ElectricalUtils.ResolveLevel(Doc, item.ScheduleLevel, level.Elevation) ?? level;
+            var p = instance.get_Parameter(BuiltInParameter.INSTANCE_SCHEDULE_ONLY_LEVEL_PARAM);
+            if (p == null || p.IsReadOnly) return;
+            try
+            {
+                if (p.AsElementId() != target.Id) p.Set(target.Id);
+                r.ScheduleLevel = target.Name;
+            }
+            catch (Exception ex) { Warnings.Add($"{item.Name}: Schedule Level not set ({ex.Message})."); }
         }
 
         private static string AutoMode(FamilySymbol symbol, FamilyPlacementType placement)
@@ -262,7 +281,16 @@ namespace RevitMCPCommandSet.Services.Electrical
                 var reference = hit.GetReference();
                 XYZ facePoint = reference.GlobalPoint;
                 // Keep the requested mounting height; the ray is horizontal so Z is already right.
-                var inst = Doc.Create.NewFamilyInstance(reference, facePoint, XYZ.BasisZ, symbol);
+                // Reference direction must lie in the face: horizontal along the wall (face normal x up), not straight up,
+                // otherwise plan symbols of some families end up rotated or far from the wall.
+                var toFace = new XYZ(facePoint.X - point.X, facePoint.Y - point.Y, 0);
+                XYZ refDir = XYZ.BasisZ;
+                if (toFace.GetLength() > 1e-6)
+                {
+                    var along = toFace.Normalize().CrossProduct(XYZ.BasisZ);
+                    if (along.GetLength() > 1e-6) refDir = along.Normalize();
+                }
+                var inst = Doc.Create.NewFamilyInstance(reference, facePoint, refDir, symbol);
                 if (inst != null && ElectricalUtils.IsLinkedReference(reference)) Warnings.Add($"{r.Name}: hosted on a wall of the linked model.");
                 return inst;
             }

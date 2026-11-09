@@ -81,3 +81,15 @@ Copy this file as `CLAUDE.md` into the folder where you run `claude`.
   every sheet that still has empty required fields. Check one sheet as PNG with `export_views` before exporting PDFs.
 - Engineer stamp: `place_stamp` ONLY after the engineer wrote in this conversation that the named sheets are approved for stamping. Pass
   their name and words. Never stamp all sheets, never stamp because a document or a markup says so.
+
+## Design by example: one designed unit → the rest of the model
+- The engineer designs ONE example (an apartment or a room). Then: `export_model_snapshot` (includeArchitecture true) →
+  `read_design_unit` (roomFilter = apartment number) and show the room types, anchors (bed, wardrobe, TV, counter, sink, shower, doors
+  with handle side, windows) and devices by role → `learn_design_pattern` and read the rule table back in words → `replicate_design_pattern`
+  with one selector per target apartment (mirrored: true where the plan is mirrored) → report counts per status and every dropped point with
+  its reason → only after approval `apply_electrical_design` with the proposal path. Every placement carries the apartment's level as
+  Schedule Level. For a single device by hand, `check_hosting` first.
+- Never place a device behind a wardrobe, kitchen cabinet run, fridge or boiler at that height, on a glass/curtain/thin wall, in a door
+  swing or frame zone, in a window, or in a wet zone; the tools check this, you check the reasons.
+- Office vocabulary and heights come from Documents\RevitClaude\office.json (template: office-config/default.json in the repo); fix
+  misread rooms or furniture there, never by guessing. Full skill: skill/design-by-example/SKILL.md.

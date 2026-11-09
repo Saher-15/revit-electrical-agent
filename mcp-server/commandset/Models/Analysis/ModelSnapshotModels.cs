@@ -32,6 +32,13 @@ namespace RevitMCPCommandSet.Models.Analysis
         /// <summary>Dump every instance and type parameter with a value instead of the curated list. Default false (file gets much larger).</summary>
         [JsonProperty("includeAllParameters")]
         public bool IncludeAllParameters { get; set; } = false;
+
+        /// <summary>
+        /// Also export the architecture the pattern engine anchors to: furniture, casework, plumbing fixtures, equipment and
+        /// generic models (as furniture), windows and walls, from the host model and every loaded link. Default true.
+        /// </summary>
+        [JsonProperty("includeArchitecture")]
+        public bool IncludeArchitecture { get; set; } = true;
     }
 
     /// <summary>Small result returned over the socket; the full snapshot goes to the file.</summary>
@@ -49,6 +56,9 @@ namespace RevitMCPCommandSet.Models.Analysis
         [JsonProperty("panelCount")] public int PanelCount { get; set; }
         [JsonProperty("circuitCount")] public int CircuitCount { get; set; }
         [JsonProperty("elementsWithoutRoom")] public int ElementsWithoutRoom { get; set; }
+        [JsonProperty("furnitureCount")] public int FurnitureCount { get; set; }
+        [JsonProperty("windowCount")] public int WindowCount { get; set; }
+        [JsonProperty("wallCount")] public int WallCount { get; set; }
         [JsonProperty("seconds")] public double Seconds { get; set; }
     }
 
@@ -56,7 +66,7 @@ namespace RevitMCPCommandSet.Models.Analysis
 
     public class ModelSnapshot
     {
-        [JsonProperty("schemaVersion")] public int SchemaVersion { get; set; } = 1;
+        [JsonProperty("schemaVersion")] public int SchemaVersion { get; set; } = 2;
         [JsonProperty("exportedAt")] public string ExportedAt { get; set; }
         [JsonProperty("revitVersion")] public string RevitVersion { get; set; }
         [JsonProperty("units")] public string Units { get; set; } = "lengths mm (lengthM in m), areas m2, volumes m3, loads VA, voltage V, rating A";
@@ -66,6 +76,9 @@ namespace RevitMCPCommandSet.Models.Analysis
         [JsonProperty("categoryCounts")] public Dictionary<string, int> CategoryCounts { get; set; } = new Dictionary<string, int>();
         [JsonProperty("rooms")] public List<SnapshotRoom> Rooms { get; set; } = new List<SnapshotRoom>();
         [JsonProperty("doors")] public List<SnapshotDoor> Doors { get; set; } = new List<SnapshotDoor>();
+        [JsonProperty("furniture")] public List<SnapshotFurniture> Furniture { get; set; } = new List<SnapshotFurniture>();
+        [JsonProperty("windows")] public List<SnapshotWindow> Windows { get; set; } = new List<SnapshotWindow>();
+        [JsonProperty("walls")] public List<SnapshotWall> Walls { get; set; } = new List<SnapshotWall>();
         [JsonProperty("elements")] public List<SnapshotElement> Elements { get; set; } = new List<SnapshotElement>();
         [JsonProperty("raceways")] public List<SnapshotRaceway> Raceways { get; set; } = new List<SnapshotRaceway>();
         [JsonProperty("panels")] public List<SnapshotPanel> Panels { get; set; } = new List<SnapshotPanel>();
@@ -107,6 +120,53 @@ namespace RevitMCPCommandSet.Models.Analysis
         [JsonProperty("wallThicknessMm", NullValueHandling = NullValueHandling.Ignore)] public double? WallThicknessMm { get; set; }
         [JsonProperty("fromRoomKey", NullValueHandling = NullValueHandling.Ignore)] public string FromRoomKey { get; set; }
         [JsonProperty("toRoomKey", NullValueHandling = NullValueHandling.Ignore)] public string ToRoomKey { get; set; }
+    }
+
+    /// <summary>Furniture, casework, plumbing fixture, equipment or generic model: an anchor for the pattern engine.</summary>
+    public class SnapshotFurniture
+    {
+        [JsonProperty("id")] public long Id { get; set; }
+        [JsonProperty("source")] public string Source { get; set; }
+        [JsonProperty("category")] public string Category { get; set; }
+        [JsonProperty("builtInCategory")] public string BuiltInCategory { get; set; }
+        [JsonProperty("family")] public string Family { get; set; }
+        [JsonProperty("type")] public string Type { get; set; }
+        [JsonProperty("level")] public string Level { get; set; }
+        [JsonProperty("roomKey", NullValueHandling = NullValueHandling.Ignore)] public string RoomKey { get; set; }
+        [JsonProperty("xyzMm")] public double[] XyzMm { get; set; }
+        [JsonProperty("bboxMinMm")] public double[] BboxMinMm { get; set; }
+        [JsonProperty("bboxMaxMm")] public double[] BboxMaxMm { get; set; }
+        [JsonProperty("facing", NullValueHandling = NullValueHandling.Ignore)] public double[] Facing { get; set; }
+        [JsonProperty("hostId", NullValueHandling = NullValueHandling.Ignore)] public long? HostId { get; set; }
+    }
+
+    public class SnapshotWindow
+    {
+        [JsonProperty("id")] public long Id { get; set; }
+        [JsonProperty("source")] public string Source { get; set; }
+        [JsonProperty("level")] public string Level { get; set; }
+        [JsonProperty("family")] public string Family { get; set; }
+        [JsonProperty("type")] public string Type { get; set; }
+        [JsonProperty("xyzMm")] public double[] XyzMm { get; set; }
+        [JsonProperty("widthMm")] public double WidthMm { get; set; }
+        [JsonProperty("sillMm")] public double SillMm { get; set; }
+        [JsonProperty("headMm")] public double HeadMm { get; set; }
+        [JsonProperty("alongWall")] public double[] AlongWall { get; set; }
+        [JsonProperty("facing")] public double[] Facing { get; set; }
+        [JsonProperty("roomKeys", NullValueHandling = NullValueHandling.Ignore)] public List<string> RoomKeys { get; set; }
+    }
+
+    public class SnapshotWall
+    {
+        [JsonProperty("id")] public long Id { get; set; }
+        [JsonProperty("source")] public string Source { get; set; }
+        [JsonProperty("level")] public string Level { get; set; }
+        [JsonProperty("type")] public string Type { get; set; }
+        [JsonProperty("startMm")] public double[] StartMm { get; set; }
+        [JsonProperty("endMm")] public double[] EndMm { get; set; }
+        [JsonProperty("thicknessMm")] public double ThicknessMm { get; set; }
+        [JsonProperty("heightMm", NullValueHandling = NullValueHandling.Ignore)] public double? HeightMm { get; set; }
+        [JsonProperty("function", NullValueHandling = NullValueHandling.Ignore)] public string Function { get; set; }
     }
 
     public class SnapshotLink

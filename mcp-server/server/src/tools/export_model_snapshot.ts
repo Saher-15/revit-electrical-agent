@@ -19,6 +19,7 @@ export function registerExportModelSnapshotTool(server: McpServer) {
       includeRoomBoundaries: z.boolean().optional().default(true).describe("Include room/space outlines in mm"),
       extraCategories: z.array(z.string()).optional().default([]).describe("Extra BuiltInCategory names to export as elements, e.g. OST_MechanicalEquipment"),
       includeAllParameters: z.boolean().optional().default(false).describe("Dump every parameter with a value instead of the curated list (much larger file)"),
+      includeArchitecture: z.boolean().optional().default(true).describe("Furniture, casework, plumbing fixtures, equipment, windows and walls from the host model and all links (schemaVersion 2), for read_design_unit / learn_design_pattern"),
     },
     async (args) => {
       try {

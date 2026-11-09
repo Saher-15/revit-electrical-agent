@@ -53,6 +53,13 @@ namespace RevitMCPCommandSet.Models.Electrical
         [JsonProperty("levelName")]
         public string LevelName { get; set; }
 
+        /// <summary>
+        /// Level to write into "Schedule Level" after placement. Default: the resolved level. Face-hosted elements on a linked
+        /// wall or ceiling otherwise get no level and drop out of per-floor schedules and the BOQ. Set to "" to leave it alone.
+        /// </summary>
+        [JsonProperty("scheduleLevel")]
+        public string ScheduleLevel { get; set; }
+
         /// <summary>Rotation around the vertical axis in degrees.</summary>
         [JsonProperty("rotation")]
         public double Rotation { get; set; }
@@ -70,6 +77,7 @@ namespace RevitMCPCommandSet.Models.Electrical
         [JsonProperty("typeName")] public string TypeName { get; set; }
         [JsonProperty("hostMode")] public string HostMode { get; set; }
         [JsonProperty("hostElementId")] public long HostElementId { get; set; } = -1;
+        [JsonProperty("scheduleLevel", NullValueHandling = NullValueHandling.Ignore)] public string ScheduleLevel { get; set; }
         [JsonProperty("error")] public string Error { get; set; }
     }
 
