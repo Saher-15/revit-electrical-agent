@@ -15,6 +15,7 @@ Built on a fork of [mcp-servers-for-revit](https://github.com/mcp-servers-for-re
 | `skill/design-by-example/` | The Claude Skill: workflow, approval gates, room rules, hosting rules, how to read the architect's model, pattern format. |
 | `office-config/` | Per-office settings template (`default.json`) and how to fill it. |
 | `docs/adapters.md` | How to write a new domain adapter. |
+| `docs/revit-cli.md` | Revit from the command line (pyRevit CLI): install, version detection, batch runs. |
 
 ## The workflow (Revit rooms adapter)
 
