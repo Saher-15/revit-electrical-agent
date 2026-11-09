@@ -62,4 +62,6 @@ For remote sessions, workshops and smoke tests nobody has to click in Revit. Put
 `localPath` instead of `cloud` opens a local file. `detach`: preserve | discard | none. `saveAs` (optional) saves the opened detached
 model as a local .rvt (a new local central when worksets are preserved), so all further work happens on that file. The add-in opens the model after Revit
 initialises, starts the MCP server on port 8080, logs to `autostart.log` and renames the file to `autostart.done.json`.
+While it runs, open-time warnings ("Instance origin does not lie on host face", missing links, ...) are deleted, errors take their first
+resolution and any dialog is answered with OK, each logged to `autostart.log`; without this the open hangs behind a modal dialog when nobody is at the PC.
 Cloud GUIDs: `%LOCALAPPDATA%\Autodesk\Revit\Autodesk Revit <year>\CollaborationCache\<account>\<projectGuid>\<modelGuid>.rvt`.

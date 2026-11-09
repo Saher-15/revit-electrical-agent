@@ -47,6 +47,11 @@ namespace revit_mcp_plugin.Core
                 var uiapp = new UIApplication(app);
                 var cfg = JObject.Parse(File.ReadAllText(ConfigPath));
 
+                // Nobody sits at the PC: swallow open-time warnings ("Instance origin does not lie on host face",
+                // missing links, ...) and press OK on any dialog, otherwise the open hangs behind a modal box.
+                app.FailuresProcessing += OnFailuresProcessing;
+                uiapp.DialogBoxShowing += OnDialogBoxShowing;
+
                 var open = cfg["open"] as JObject;
                 if (open != null)
                 {
@@ -116,8 +121,74 @@ namespace revit_mcp_plugin.Core
             }
             finally
             {
+                try
+                {
+                    var app = sender as Application;
+                    if (app != null)
+                    {
+                        app.FailuresProcessing -= OnFailuresProcessing;
+                        new UIApplication(app).DialogBoxShowing -= OnDialogBoxShowing;
+                    }
+                }
+                catch { }
                 try { if (File.Exists(done)) File.Delete(done); File.Move(ConfigPath, done); } catch (Exception ex) { Log("rename failed: " + ex.Message); }
             }
+        }
+
+        /// <summary>Delete warnings and take the first resolution of errors while the autostart open/save runs.</summary>
+        private static void OnFailuresProcessing(object sender, Autodesk.Revit.DB.Events.FailuresProcessingEventArgs e)
+        {
+            try
+            {
+                var fa = e.GetFailuresAccessor();
+                var messages = fa.GetFailureMessages();
+                if (messages.Count == 0) return;
+                int warnings = 0, resolved = 0, unresolved = 0;
+                foreach (var m in messages)
+                {
+                    string text = m.GetDescriptionText();
+                    if (m.GetSeverity() == FailureSeverity.Warning)
+                    {
+                        fa.DeleteWarning(m);
+                        warnings++;
+                        Log("warning dismissed: " + text);
+                    }
+                    else if (m.HasResolutions())
+                    {
+                        fa.ResolveFailure(m);
+                        resolved++;
+                        Log("error resolved (" + m.GetCurrentResolutionType() + "): " + text);
+                    }
+                    else
+                    {
+                        unresolved++;
+                        Log("error without resolution: " + text);
+                    }
+                }
+                if (unresolved > 0) e.SetProcessingResult(FailureProcessingResult.ProceedWithRollBack);
+                else if (resolved > 0) e.SetProcessingResult(FailureProcessingResult.ProceedWithCommit);
+                else e.SetProcessingResult(FailureProcessingResult.Continue);
+                Log("failures processed: " + warnings + " warnings, " + resolved + " resolved, " + unresolved + " unresolved");
+            }
+            catch (Exception ex) { Log("failures handler: " + ex.Message); }
+        }
+
+        /// <summary>Answer OK (or the first command link) to any dialog shown while autostart runs.</summary>
+        private static void OnDialogBoxShowing(object sender, Autodesk.Revit.UI.Events.DialogBoxShowingEventArgs e)
+        {
+            try
+            {
+                var td = e as Autodesk.Revit.UI.Events.TaskDialogShowingEventArgs;
+                string what = e.DialogId + (td != null ? " \"" + td.Message + "\"" : "");
+                bool ok = false;
+                foreach (int result in new[] { (int)TaskDialogResult.Ok, (int)TaskDialogResult.Yes, (int)TaskDialogResult.Close, (int)TaskDialogResult.CommandLink1 })
+                {
+                    try { if (e.OverrideResult(result)) { ok = true; Log("dialog " + what + " answered with " + (TaskDialogResult)result); break; } }
+                    catch { }
+                }
+                if (!ok) Log("dialog " + what + " could not be answered automatically");
+            }
+            catch (Exception ex) { Log("dialog handler: " + ex.Message); }
         }
 
         private static string WorkFolder()
