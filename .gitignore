@@ -13,3 +13,13 @@ mcp-server/server/revit-data.db
 _claude_*
 *.zip
 *.tgz
+# client model data stays on the PC: snapshots, patterns, proposals, baselines of real projects
+tests/baselines/private/
+**/snapshots/
+*_PATTERN.json
+*_REPLICATE*.json
+*_REPLICATE*.html
+*_APPLIED.json
+*_DESIGN.json
+*_BOQ.xlsx
+*_REVIEW.*
