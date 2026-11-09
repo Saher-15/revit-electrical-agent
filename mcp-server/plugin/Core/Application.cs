@@ -47,6 +47,10 @@ namespace revit_mcp_plugin.Core
             try { revit_mcp_plugin.Chat.ChatPane.Register(application); }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine("Claude chat pane: " + ex); }
 
+            // Unattended start (Documents\RevitClaude\autostart.json): open a model and start the server without clicks.
+            try { AutoStart.Register(application); }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine("AutoStart: " + ex); }
+
             return Result.Succeeded;
         }
 
