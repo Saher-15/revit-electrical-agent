@@ -46,6 +46,9 @@ namespace revit_mcp_plugin.Core
                 if (app == null) { Log("sender is not Application"); return; }
                 var uiapp = new UIApplication(app);
                 var cfg = JObject.Parse(File.ReadAllText(ConfigPath));
+                // Rename the config right away: a second Revit instance started while this open is still
+                // running must not read it and open the same model again.
+                try { if (File.Exists(done)) File.Delete(done); File.Move(ConfigPath, done); } catch (Exception ex) { Log("rename failed: " + ex.Message); }
 
                 // Nobody sits at the PC: swallow open-time warnings ("Instance origin does not lie on host face",
                 // missing links, ...) and press OK on any dialog, otherwise the open hangs behind a modal box.
@@ -131,7 +134,7 @@ namespace revit_mcp_plugin.Core
                     }
                 }
                 catch { }
-                try { if (File.Exists(done)) File.Delete(done); File.Move(ConfigPath, done); } catch (Exception ex) { Log("rename failed: " + ex.Message); }
+                try { if (File.Exists(ConfigPath)) { if (File.Exists(done)) File.Delete(done); File.Move(ConfigPath, done); } } catch (Exception ex) { Log("rename failed: " + ex.Message); }
             }
         }
 
