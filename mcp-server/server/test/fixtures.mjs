@@ -1,5 +1,5 @@
 // Builds test PDFs and Office files in memory, so the tests need no binary fixtures.
-import { PDFDocument, PDFName, PDFString, StandardFonts } from "pdf-lib";
+import { PDFDocument, PDFHexString, PDFName, PDFString, StandardFonts } from "pdf-lib";
 import JSZip from "jszip";
 
 export async function markupPdf() {
@@ -49,4 +49,22 @@ export async function docx(paragraphs) {
   zip.file("[Content_Types].xml", "<Types/>");
   zip.file("word/document.xml", `<?xml version="1.0"?><w:document xmlns:w="w"><w:body>${body}</w:body></w:document>`);
   return await zip.generateAsync({ type: "nodebuffer" });
+}
+
+/** A page like real CAD PDFs: Acrobat SHX text annotations, an approval stamp, a cloud with no words and a comment with \r breaks. */
+export async function noisyMarkupPdf() {
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const page = doc.addPage([1190.55, 841.89]);
+  page.drawText("Corridor", { x: 500, y: 300, size: 10, font });
+  const ctx = doc.context;
+  const annot = (dict) => page.node.addAnnot(ctx.register(ctx.obj(dict)));
+  for (let i = 0; i < 3; i++)
+    annot({ Type: "Annot", Subtype: "Square", Rect: [100 + i * 50, 100, 140 + i * 50, 110], T: PDFString.of("AutoCAD SHX Text"), Contents: PDFString.of("EMPRESARIOS AGRUPADOS") });
+  annot({ Type: "Annot", Subtype: "Square", Rect: [100, 200, 140, 210], T: PDFString.of("autocad shx text"), Contents: PDFString.of("x") });
+  annot({ Type: "Annot", Subtype: "Stamp", Rect: [900, 700, 1000, 760], T: PDFString.of("oferh") });
+  annot({ Type: "Annot", Subtype: "Stamp", Rect: [900, 600, 1000, 660], T: PDFString.of("oferh"), Contents: PDFString.of("Rejected: see comments") });
+  annot({ Type: "Annot", Subtype: "Polygon", IT: PDFName.of("PolygonCloud"), Rect: [480, 280, 600, 340], T: PDFString.of("pedro") });
+  annot({ Type: "Annot", Subtype: "Text", Rect: [520, 320, 540, 340], T: PDFHexString.fromText("craig\r"), Contents: PDFHexString.fromText("Split activities:\ra) one\r\nb) two\r") });
+  return await doc.save();
 }

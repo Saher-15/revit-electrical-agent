@@ -22,22 +22,29 @@ export function registerReadPdfMarkupsTool(server: McpServer) {
     },
     async (args) => {
       try {
-        const { pages, markups, pageCount } = await readMarkups(args.file, args);
+        const { pages, markups, ignored, pageCount } = await readMarkups(args.file, args);
         const jsonPath = taskJsonPath(args.file);
         const existing = fs.existsSync(jsonPath) ? loadTasks(jsonPath) : undefined;
         const merged = mergeTasks(existing, args.file, markups);
         const files = await writeTaskFiles(jsonPath, merged);
         const shown = merged.tasks.slice(0, args.maxReturn).map((t) => ({
           id: t.id, page: t.page, sheet: t.sheet, kind: t.kind, author: t.author, date: t.date, comment: t.comment,
-          replies: t.replies, nearbyText: t.nearbyText, xMm: t.xMm, yMm: t.yMm, status: t.status,
+          replies: t.replies, noText: t.noText, nearbyText: t.nearbyText, xMm: t.xMm, yMm: t.yMm, status: t.status,
         }));
+        const skipped = ignored.shxText + ignored.emptyStamps;
+        const notes = [
+          skipped ? `Skipped ${ignored.shxText} Acrobat "AutoCAD SHX Text" annotations (drawing text, not comments) and ${ignored.emptyStamps} stamps without text.` : "",
+          merged.tasks.some((t) => t.noText) ? "Markups with noText mark an area without a written comment: look at the drawing there (export the sheet) or ask the designer." : "",
+        ].filter(Boolean);
         const result = {
           pageCount,
+          ignored,
           pages,
           markupCount: merged.tasks.length,
           status: summary(merged),
           files,
-          note: merged.tasks.length === 0
+          notes: notes.length ? notes : undefined,
+          note: merged.tasks.length === 0 && !skipped
             ? "No markups found. The PDF may be flattened (markups burned into the drawing); then they cannot be read as comments."
             : merged.tasks.length > shown.length ? `Showing ${shown.length} of ${merged.tasks.length}; the rest are in ${files.json}.` : undefined,
           markups: shown,

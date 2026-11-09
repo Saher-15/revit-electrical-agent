@@ -30,6 +30,8 @@ export interface PdfMarkup {
   comment: string;
   /** Replies to this markup (other annotations whose inReplyTo points here). */
   replies: string[];
+  /** A shape (cloud, box) with no written comment: it marks an area only. */
+  noText?: boolean;
   /** Words printed on the drawing under or next to the markup, to tell where it is. */
   nearbyText: string;
   color?: string;
@@ -102,10 +104,21 @@ export function findSheetNumber(items: TextItem[], sheetNumbers: string[]): stri
   return undefined;
 }
 
+/** Line breaks in PDF strings are often bare \r. */
+export function cleanText(s: string | undefined): string {
+  return (s || "").replace(/\r\n?/g, "\n").trim();
+}
+
+/** Acrobat turns AutoCAD SHX text into annotations with this author; they are drawing text, not comments. */
+export const SHX_AUTHOR = "autocad shx text";
+
+export interface IgnoredMarkups { shxText: number; emptyStamps: number }
+
 export async function readMarkups(file: string, opts: { pages?: number[]; nearbyMm?: number; sheetNumbers?: string[] } = {}) {
   const doc = await openPdf(file);
   const markups: PdfMarkup[] = [];
   const pages: PdfPageInfo[] = [];
+  const ignored: IgnoredMarkups = { shxText: 0, emptyStamps: 0 };
   const marginPt = (opts.nearbyMm ?? 15) / PT_TO_MM;
   for (let p = 1; p <= doc.numPages; p++) {
     if (opts.pages?.length && !opts.pages.includes(p)) continue;
@@ -120,7 +133,9 @@ export async function readMarkups(file: string, opts: { pages?: number[]; nearby
     for (const a of annots) {
       const kind: string = a.subtype;
       if (!MARKUP_KINDS.has(kind)) continue;
-      const comment = (a.contentsObj?.str ?? a.contents ?? "").trim();
+      const comment = cleanText(a.contentsObj?.str ?? a.contents);
+      const author = cleanText(a.titleObj?.str ?? a.title);
+      if (author.toLowerCase() === SHX_AUTHOR) { ignored.shxText++; continue; }
       if (a.inReplyTo && a.replyType !== "Group") { replies.push(a); continue; }
       const r: number[] = a.rect;
       const m: PdfMarkup = {
@@ -128,10 +143,11 @@ export async function readMarkups(file: string, opts: { pages?: number[]; nearby
         page: p,
         sheet: info.sheet,
         kind: a.it === "PolygonCloud" || a.intent === "PolygonCloud" ? "Cloud" : kind,
-        author: (a.titleObj?.str ?? a.title ?? "").trim(),
+        author,
         date: pdfDate(a.modificationDate || a.creationDate),
         comment,
         replies: [],
+        noText: comment ? undefined : true,
         nearbyText: textNear(items, r, marginPt),
         color: hexColor(a.color),
         xMm: round(((r[0] + r[2]) / 2 - vx1) * PT_TO_MM),
@@ -147,13 +163,22 @@ export async function readMarkups(file: string, opts: { pages?: number[]; nearby
     }
     for (const a of replies) {
       const parent = byId.get(a.inReplyTo);
-      const text = (a.contentsObj?.str ?? a.contents ?? "").trim();
-      const who = (a.titleObj?.str ?? a.title ?? "").trim();
+      const text = cleanText(a.contentsObj?.str ?? a.contents);
+      const who = cleanText(a.titleObj?.str ?? a.title);
       if (parent && text) parent.replies.push(who ? `${who}: ${text}` : text);
+    }
+    // A stamp with no words and no replies (approval stamps, "Reviewed") is not a task.
+    for (let i = markups.length - 1; i >= 0; i--) {
+      const m = markups[i];
+      if (m.page === p && m.kind === "Stamp" && !m.comment && m.replies.length === 0) {
+        markups.splice(i, 1);
+        info.markups--;
+        ignored.emptyStamps++;
+      }
     }
     pages.push(info);
   }
-  return { pages, markups, pageCount: doc.numPages as number };
+  return { pages, markups, ignored, pageCount: doc.numPages as number };
 }
 
 /** Plain text of a PDF, page by page. */
