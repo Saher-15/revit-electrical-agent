@@ -82,7 +82,11 @@ export function registerDesignPatternTools(server: McpServer) {
         const b = buildUnit(snap, a as UnitSelector, cfg);
         const pattern = learn(b.unit, { anchorPriority: ANCHOR_PRIORITY, keepTagPrefixes: ["handle:"], anchorKindsByRole: ANCHORS_BY_ROLE });
         const out = a.outputPath ?? a.snapshotPath.replace(/\.json$/i, "") + "_PATTERN.json";
-        fs.writeFileSync(out, JSON.stringify({ ...pattern, levelName: b.levelName, roomTypes: b.roomTypes, templateRoomKeys: b.rooms.map((r) => r.key) }, null, 1), "utf8");
+        // Signature, area and outlines travel with the pattern so another floor's snapshot can find the same type and mirror.
+        const templateSignature = b.rooms.map((r) => b.roomTypes[r.key]).sort().join(",");
+        const templateAreaM2 = Math.round(b.rooms.reduce((s, r) => s + r.areaM2, 0) * 10) / 10;
+        const templateRooms = b.rooms.map((r) => ({ key: r.key, name: r.name, number: r.number, areaM2: r.areaM2, boundaryMm: r.boundaryMm, centerMm: r.centerMm }));
+        fs.writeFileSync(out, JSON.stringify({ ...pattern, levelName: b.levelName, roomTypes: b.roomTypes, templateRoomKeys: b.rooms.map((r) => r.key), templateSignature, templateAreaM2, templateRooms }, null, 1), "utf8");
         const table = pattern.rules.map((r) => `${r.parentType} | ${r.role} | ${r.anchorKind}#${r.ordinal}${r.anchorTags ? " " + r.anchorTags.join(",") : ""} | along ${r.along} across ${r.across} | h ${r.height} | ${r.host}`);
         return text({ patternPath: out, unit: b.unit.id, rules: pattern.rules.length, designedDevices: b.unit.designed.length, table, notes: pattern.notes, warnings: b.warnings });
       } catch (e) { return fail("learn_design_pattern", e); }
@@ -105,12 +109,15 @@ export function registerDesignPatternTools(server: McpServer) {
       try {
         const cfg = loadOfficeConfig(a.officeConfigPath);
         const snap = loadSnapshot(a.snapshotPath);
-        type StoredPattern = Pattern & { templateRoomKeys?: string[] };
+        type StoredPattern = Pattern & { templateRoomKeys?: string[]; templateSignature?: string; templateAreaM2?: number; templateRooms?: any[] };
         const patterns: StoredPattern[] = (a.patternPaths?.length ? a.patternPaths : [a.patternPath]).map((p) => JSON.parse(fs.readFileSync(p, "utf8")));
         const allApts = listApartments(snap, cfg, { apartmentPattern: a.targetsAuto?.apartmentPattern });
         const typeOf = (roomKeys: string[] | undefined) => allApts.find((x) => roomKeys?.some((k) => x.roomKeys.includes(k)))?.type;
         const patternByType = new Map<string | undefined, StoredPattern>();
-        for (const p of patterns) patternByType.set(typeOf(p.templateRoomKeys), p);
+        // Template from another snapshot (another floor): its keys are not here, so match by room-type signature and area (same 15 % as the type labels).
+        const typeOfPattern = (p: StoredPattern) => typeOf(p.templateRoomKeys)
+          ?? allApts.find((x) => x.signature === p.templateSignature && Math.abs(x.areaM2 - (p.templateAreaM2 ?? 0)) / Math.max(x.areaM2, 1) <= 0.15)?.type;
+        for (const p of patterns) patternByType.set(typeOfPattern(p), p);
         let targets = (a.targets ?? []) as (UnitSelector & { mirrored?: boolean })[];
         if (a.targetsAuto) {
           const apts = a.targetsAuto.levelName ? allApts.filter((x) => (x.level ?? "").toLowerCase().includes(a.targetsAuto!.levelName!.toLowerCase())) : allApts;
@@ -126,7 +133,8 @@ export function registerDesignPatternTools(server: McpServer) {
           const probe = buildUnit(snap, t, cfg);
           const targetType = typeOf(probe.rooms.map((r) => r.key));
           const pattern = patternByType.get(targetType) ?? patterns[0];
-          const templateRooms = snap.rooms.filter((r) => pattern.templateRoomKeys?.includes(r.key));
+          const here = snap.rooms.filter((r) => pattern.templateRoomKeys?.includes(r.key));
+          const templateRooms = here.length ? here : (pattern.templateRooms ?? []);
           if (t.mirrored === undefined && a.detectMirror && templateRooms.length) t.mirrored = detectMirrored(templateRooms, probe.rooms, cfg).mirrored;
           const b = buildUnit(snap, t, cfg);
           const existing: Pt3[] = b.unit.designed.map((d) => d.point);

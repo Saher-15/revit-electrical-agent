@@ -225,6 +225,11 @@ test("tools: read → learn → replicate through MCP, proposal + HTML preview w
   assert.equal(auto.perUnit.length, 1, JSON.stringify(auto));
   assert.equal(auto.perUnit[0].unit, "04");
   assert.equal(auto.perUnit[0].type, "A");
+  // Another floor's snapshot: none of the template's room keys exist there, the type comes from the stored signature.
+  const otherPath = path.join(dir, "other.json");
+  fs.writeFileSync(otherPath, JSON.stringify(snapshot(true)).replace(/"(0[34])-(MBR|KIT)"/g, '"F2-$1-$2"'));
+  const cross = await call("replicate_design_pattern", { patternPath: learned.patternPath, snapshotPath: otherPath, targetsAuto: {}, outputPath: path.join(dir, "cross.json") });
+  assert.deepEqual(cross.perUnit?.map((u) => u.type), ["A", "A"], JSON.stringify(cross));
   const units = await call("list_design_units", { snapshotPath: snapPath });
   assert.equal(units.apartments, 2);
   assert.equal(units.rows.find((r) => r.id === "03").devices, 7);
@@ -281,6 +286,7 @@ test("real-model lessons: link levels by door elevation, duplicate rooms, door g
   const door = (id, x, y, facing) => ({ id, source: "Arch", level: "09", xyzMm: [x, y, z], widthMm: 900, alongWall: [1, 0], facing, wallThicknessMm: 200 });
   const doors = [door(1, 1000, 4100, [0, 1]), door(2, 4800, 4100, [0, 1]), door(3, -100, 2000, [1, 0]), door(4, 1000, 4100, [0, 1]) /* duplicate */];
   doors[2].alongWall = [0, 1];
+  doors.push({ ...door(5, 9000, 2000, [1, 0]), alongWall: [0, 1] }); // kitchen door to the outside: still joins by the shared wall
   const snap = { schemaVersion: 2, exportedAt: "", revitVersion: "2025", document: { title: "t", path: "", isWorkshared: false, projectInfo: {} },
     levels: [{ id: 1, name: "01", elevationMm: 4280 }, { id: 2, name: "02", elevationMm: 7580 }, { id: 3, name: "09", elevationMm: 29140 }], links: [], categoryCounts: {},
     rooms, doors, furniture: [], windows: [], walls: [],

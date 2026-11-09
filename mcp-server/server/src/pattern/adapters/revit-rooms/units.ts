@@ -46,8 +46,9 @@ export function groupRoomsByDoors(snap: ModelSnapshot, rooms: SnapshotRoom[], cf
     const rs = doorRooms(d, privateRooms);
     for (let i = 1; i < rs.length; i++) union(rs[0].key, rs[i].key);
   }
-  // A room with no door at all (open kitchen, dining nook) belongs with the room it shares the longest wall with.
-  const doored = new Set(dedupeDoors(snap.doors).flatMap((d) => doorRooms(d, privateRooms).map((r) => r.key)));
+  // A room with no door to another room (open kitchen, dining nook; a door to the outside or a service balcony does not count)
+  // belongs with the private room it shares the longest wall with. A room whose door opens to a corridor stays on its own.
+  const doored = new Set(dedupeDoors(snap.doors).map((d) => doorRooms(d, rooms)).filter((rs) => rs.length > 1).flat().map((r) => r.key));
   for (const r of privateRooms) {
     if (doored.has(r.key)) continue;
     let best: { key: string; shared: number } | undefined;
