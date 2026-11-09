@@ -14,6 +14,7 @@ Deliverables
 3. ☑ Wall-face reference direction fix (horizontal along the wall instead of straight up).
 4. ☑ Compiles against Revit 2025 and 2026 APIs (`mcp-server/tests/compile-check`, 0 errors).
 5. ☑ CLAUDE-electrical.md has the design-by-example section (installer already deploys it); install = `install-electrical.ps1 -RevitYear 2025|2026`.
+6. ☑ Unattended start (`autostart.json`): opens cloud/local model detached, Save As local copy, dismisses open-time warnings/dialogs, consumes the config before opening, reloads unloaded links (`reloadLinks`, `linksFolder`); `manage_links` tool for the same on demand.
 
 Acceptance
 - Snapshot of a model with the architect link contains ≥ 1 bed/wardrobe/kitchen counter per apartment with room keys, windows with sill/head, walls with thickness; file written in < 2 min for a 20-floor building (narrow with `levelName`).
