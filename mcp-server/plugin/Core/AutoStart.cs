@@ -45,7 +45,7 @@ namespace revit_mcp_plugin.Core
             string done = Path.Combine(WorkFolder(), "autostart.done.json");
             try
             {
-                var app = sender as Application;
+                var app = sender as Autodesk.Revit.ApplicationServices.Application;
                 if (app == null) { Log("sender is not Application"); return; }
                 var uiapp = new UIApplication(app);
                 var cfg = JObject.Parse(File.ReadAllText(ConfigPath));
@@ -131,7 +131,7 @@ namespace revit_mcp_plugin.Core
             {
                 try
                 {
-                    var app = sender as Application;
+                    var app = sender as Autodesk.Revit.ApplicationServices.Application;
                     if (app != null)
                     {
                         app.FailuresProcessing -= OnFailuresProcessing;
