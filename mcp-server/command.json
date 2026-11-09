@@ -154,6 +154,11 @@
       "assemblyPath": "RevitMCPCommandSet.dll"
     },
     {
+      "commandName": "manage_links",
+      "description": "List the Revit links of the open model and reload the ones that are not loaded (cloud, server or a local folder)",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
       "commandName": "export_model_snapshot",
       "description": "Export the whole model (rooms, electrical elements, raceways, panels, circuits) to a JSON file",
       "assemblyPath": "RevitMCPCommandSet.dll"

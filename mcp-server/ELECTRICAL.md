@@ -60,7 +60,9 @@ For remote sessions, workshops and smoke tests nobody has to click in Revit. Put
             "detach": "preserve", "worksets": "all" } }
 ```
 `localPath` instead of `cloud` opens a local file. `detach`: preserve | discard | none. `saveAs` (optional) saves the opened detached
-model as a local .rvt (a new local central when worksets are preserved), so all further work happens on that file. The add-in opens the model after Revit
+model as a local .rvt (a new local central when worksets are preserved), so all further work happens on that file. `reloadLinks` (default true)
+reloads every link that is not loaded after the open (a detached local copy shows its cloud links as "Not Shared"); `linksFolder` names a folder
+with local copies of the linked models, matched by file name, used before the stored path. The same is available on demand as the `manage_links` tool. The add-in opens the model after Revit
 initialises, starts the MCP server on port 8080, logs to `autostart.log` and renames the file to `autostart.done.json`.
 While it runs, open-time warnings ("Instance origin does not lie on host face", missing links, ...) are deleted, errors take their first
 resolution and any dialog is answered with OK, each logged to `autostart.log`; without this the open hangs behind a modal dialog when nobody is at the PC.

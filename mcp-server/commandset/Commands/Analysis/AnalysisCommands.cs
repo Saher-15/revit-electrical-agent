@@ -14,3 +14,13 @@ namespace RevitMCPCommandSet.Commands.Analysis
         public ExportModelSnapshotCommand(UIApplication uiApp) : base(new ExportModelSnapshotEventHandler(), uiApp, 115000) { }
     }
 }
+
+namespace RevitMCPCommandSet.Commands.Analysis
+{
+    public class ManageLinksCommand : ElectricalCommandBase<ManageLinksRequest, ManageLinksResult>
+    {
+        public override string CommandName => "manage_links";
+        protected override string InputProperty => null;
+        public ManageLinksCommand(UIApplication uiApp) : base(new ManageLinksEventHandler(), uiApp, 115000) { }
+    }
+}

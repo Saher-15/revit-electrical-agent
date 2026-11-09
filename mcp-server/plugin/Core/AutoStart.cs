@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -21,7 +22,9 @@ namespace revit_mcp_plugin.Core
     ///     "localPath": "C:\\models\\building.rvt",
     ///     "detach": "preserve" | "discard" | "none",
     ///     "worksets": "all" | "lastViewed" | "editable" | "none",
-    ///     "saveAs": "C:\\models\\building_local.rvt"   // optional: save the opened (detached) model as a local file
+    ///     "saveAs": "C:\\models\\building_local.rvt",  // optional: save the opened (detached) model as a local file
+    ///     "reloadLinks": true,                            // default true: reload links that are not loaded after the open
+    ///     "linksFolder": "C:\\models\\links"            // optional: local copies of the linked models, matched by file name
     ///   }
     /// }
     /// </summary>
@@ -104,6 +107,8 @@ namespace revit_mcp_plugin.Core
                             uidoc.Document.SaveAs(saveAs, sao);
                             Log("Saved as local file: " + saveAs + " (this file is now the working copy; never Sync it to the cloud model)");
                         }
+                        if (open.Value<bool?>("reloadLinks") ?? true)
+                            ReloadLinks(uidoc.Document, open.Value<string>("linksFolder"));
                     }
                 }
 
@@ -135,6 +140,33 @@ namespace revit_mcp_plugin.Core
                 }
                 catch { }
                 try { if (File.Exists(ConfigPath)) { if (File.Exists(done)) File.Delete(done); File.Move(ConfigPath, done); } } catch (Exception ex) { Log("rename failed: " + ex.Message); }
+            }
+        }
+
+        /// <summary>
+        /// A detached copy saved locally loses its cloud links ("Not Shared"). Reload every link that is not loaded,
+        /// from linksFolder when a file with the link's name exists there, else from the stored path. No transaction.
+        /// </summary>
+        private static void ReloadLinks(Document doc, string linksFolder)
+        {
+            foreach (var type in new FilteredElementCollector(doc).OfClass(typeof(RevitLinkType)).Cast<RevitLinkType>())
+            {
+                try
+                {
+                    if (type.GetLinkedFileStatus() == LinkedFileStatus.Loaded) continue;
+                    string local = null;
+                    if (!string.IsNullOrWhiteSpace(linksFolder) && Directory.Exists(linksFolder))
+                    {
+                        string name = type.Name.EndsWith(".rvt", StringComparison.OrdinalIgnoreCase) ? type.Name : type.Name + ".rvt";
+                        local = Directory.EnumerateFiles(linksFolder, "*.rvt", SearchOption.AllDirectories)
+                            .FirstOrDefault(f => string.Equals(Path.GetFileName(f), name, StringComparison.OrdinalIgnoreCase));
+                    }
+                    var res = local != null
+                        ? type.LoadFrom(ModelPathUtils.ConvertUserVisiblePathToModelPath(local), new WorksetConfiguration(WorksetConfigurationOption.OpenAllWorksets))
+                        : type.Reload();
+                    Log("link " + type.Name + (local != null ? " from " + local : " reloaded") + ": " + res.LoadResult + " -> " + type.GetLinkedFileStatus());
+                }
+                catch (Exception ex) { Log("link " + type.Name + " reload failed: " + ex.Message); }
             }
         }
 
