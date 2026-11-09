@@ -20,7 +20,8 @@ namespace revit_mcp_plugin.Core
     ///     "cloud": { "region": "US", "projectGuid": "....", "modelGuid": "...." },   // or
     ///     "localPath": "C:\\models\\building.rvt",
     ///     "detach": "preserve" | "discard" | "none",
-    ///     "worksets": "all" | "lastViewed" | "editable" | "none"
+    ///     "worksets": "all" | "lastViewed" | "editable" | "none",
+    ///     "saveAs": "C:\\models\\building_local.rvt"   // optional: save the opened (detached) model as a local file
     ///   }
     /// }
     /// </summary>
@@ -82,6 +83,19 @@ namespace revit_mcp_plugin.Core
                         Log("Opening " + ModelPathUtils.ConvertModelPathToUserVisiblePath(modelPath) + " detach=" + opts.DetachFromCentralOption);
                         var uidoc = uiapp.OpenAndActivateDocument(modelPath, opts, false);
                         Log("Opened: " + uidoc.Document.Title + " (workshared=" + uidoc.Document.IsWorkshared + ")");
+                        string saveAs = open.Value<string>("saveAs");
+                        if (!string.IsNullOrWhiteSpace(saveAs))
+                        {
+                            Directory.CreateDirectory(Path.GetDirectoryName(saveAs));
+                            var sao = new SaveAsOptions { OverwriteExistingFile = true, MaximumBackups = 1 };
+                            if (uidoc.Document.IsWorkshared)
+                            {
+                                var wso = new WorksharingSaveAsOptions { SaveAsCentral = true };
+                                sao.SetWorksharingOptions(wso);
+                            }
+                            uidoc.Document.SaveAs(saveAs, sao);
+                            Log("Saved as local file: " + saveAs + " (this file is now the working copy; never Sync it to the cloud model)");
+                        }
                     }
                 }
 
