@@ -10,6 +10,7 @@ import { learn, replicate, summarize, Pattern, Pt3, Placed } from "../pattern/co
 import { buildUnit, hostingConstraints, toPlacements, UnitSelector } from "../pattern/adapters/revit-rooms/adapter.js";
 import { loadOfficeConfig } from "../pattern/adapters/revit-rooms/config.js";
 import { replicationPreviewHtml } from "../pattern/adapters/revit-rooms/preview.js";
+import { listApartments, detectMirrored } from "../pattern/adapters/revit-rooms/units.js";
 
 const selector = {
   roomKeys: z.array(z.string()).optional().describe("Room keys of the unit (from the snapshot)"),
@@ -25,6 +26,26 @@ const text = (v: unknown) => ({ content: [{ type: "text" as const, text: typeof 
 const fail = (name: string, e: unknown) => text(`${name} failed: ${e instanceof Error ? e.message : String(e)}`);
 
 export function registerDesignPatternTools(server: McpServer) {
+  server.tool(
+    "list_design_units",
+    "Lists the apartments (units) of a snapshot: rooms grouped by room-number prefix (e.g. '03-01'), each with its room types, area, a type label (A, B, C: same room-type " +
+      "signature and area within 15 %), and the count of electrical devices already designed in it. Use it to find the template apartment (most devices) and the targets " +
+      "(same type, other floors) before learn/replicate.",
+    { snapshotPath: z.string(), levelName: z.string().optional(), apartmentPattern: z.string().optional().describe("Regex with one capture group applied to the room number to get the apartment id; default splits on - . _ /"),
+      officeConfigPath: z.string().optional() },
+    async (a) => {
+      try {
+        const cfg = loadOfficeConfig(a.officeConfigPath);
+        const snap = loadSnapshot(a.snapshotPath);
+        const apts = listApartments(snap, cfg, { levelName: a.levelName, apartmentPattern: a.apartmentPattern });
+        const devicesByRoom = new Map<string, number>();
+        for (const e of snap.elements) if (e.roomKey) devicesByRoom.set(e.roomKey, (devicesByRoom.get(e.roomKey) ?? 0) + 1);
+        const rows = apts.map((x) => ({ id: x.id, level: x.level, type: x.type, areaM2: x.areaM2, rooms: x.rooms.length, roomTypes: x.signature, devices: x.roomKeys.reduce((s, k) => s + (devicesByRoom.get(k) ?? 0), 0), roomKeys: x.roomKeys }));
+        return text({ apartments: rows.length, byType: rows.reduce<Record<string, number>>((m, r) => { m[r.type!] = (m[r.type!] ?? 0) + 1; return m; }, {}), rows });
+      } catch (e) { return fail("list_design_units", e); }
+    }
+  );
+
   server.tool(
     "read_design_unit",
     "Reads one unit of a repeating object from a snapshot: for Revit rooms, an apartment (group of rooms) or a room. Returns room types, the anchors found " +
@@ -61,7 +82,7 @@ export function registerDesignPatternTools(server: McpServer) {
         const b = buildUnit(snap, a as UnitSelector, cfg);
         const pattern = learn(b.unit, { anchorPriority: ANCHOR_PRIORITY, keepTagPrefixes: ["handle:"], anchorKindsByRole: ANCHORS_BY_ROLE });
         const out = a.outputPath ?? a.snapshotPath.replace(/\.json$/i, "") + "_PATTERN.json";
-        fs.writeFileSync(out, JSON.stringify({ ...pattern, levelName: b.levelName, roomTypes: b.roomTypes }, null, 1), "utf8");
+        fs.writeFileSync(out, JSON.stringify({ ...pattern, levelName: b.levelName, roomTypes: b.roomTypes, templateRoomKeys: b.rooms.map((r) => r.key) }, null, 1), "utf8");
         const table = pattern.rules.map((r) => `${r.parentType} | ${r.role} | ${r.anchorKind}#${r.ordinal}${r.anchorTags ? " " + r.anchorTags.join(",") : ""} | along ${r.along} across ${r.across} | h ${r.height} | ${r.host}`);
         return text({ patternPath: out, unit: b.unit.id, rules: pattern.rules.length, designedDevices: b.unit.designed.length, table, notes: pattern.notes, warnings: b.warnings });
       } catch (e) { return fail("learn_design_pattern", e); }
@@ -74,16 +95,34 @@ export function registerDesignPatternTools(server: McpServer) {
       "the hosting checks (non-clean wall, behind wardrobe/cabinets/fridge/boiler, door frame and swing, windows, wet zones, collisions) with slide/mirror fallbacks, and writes " +
       "<pattern>_REPLICATE_<unit>.json in the proposal shape of apply_electrical_design (every placement carries the unit's level as Schedule Level). Returns counts per status and the " +
       "dropped points with reasons. Get the engineer's approval, then apply_electrical_design with the proposal path.",
-    { patternPath: z.string(), snapshotPath: z.string(), targets: z.array(z.object({ ...selector, id: z.string().optional(), mirrored: z.boolean().optional() })).min(1).describe("One selector per target unit"),
+    { patternPath: z.string(), snapshotPath: z.string(), targets: z.array(z.object({ ...selector, id: z.string().optional(), mirrored: z.boolean().optional() })).optional().describe("One selector per target unit"),
+      targetsAuto: z.object({ levelName: z.string().optional(), sameTypeOnly: z.boolean().optional().default(true), apartmentPattern: z.string().optional() }).optional()
+        .describe("Instead of targets: every apartment found by list_design_units (optionally on one level), excluding the template, same type as the template by default"),
+      detectMirror: z.boolean().optional().default(true).describe("Flip left/right offsets for targets whose room layout mirrors the template"),
       officeConfigPath: z.string().optional(), outputPath: z.string().optional().describe("Proposal JSON path; default <pattern>_REPLICATE.json") },
     async (a) => {
       try {
         const cfg = loadOfficeConfig(a.officeConfigPath);
         const snap = loadSnapshot(a.snapshotPath);
-        const pattern = JSON.parse(fs.readFileSync(a.patternPath, "utf8")) as Pattern;
+        const pattern = JSON.parse(fs.readFileSync(a.patternPath, "utf8")) as Pattern & { templateRoomKeys?: string[] };
+        let targets = (a.targets ?? []) as (UnitSelector & { mirrored?: boolean })[];
+        const templateRooms = snap.rooms.filter((r) => pattern.templateRoomKeys?.includes(r.key));
+        if (a.targetsAuto) {
+          const apts = listApartments(snap, cfg, { levelName: a.targetsAuto.levelName, apartmentPattern: a.targetsAuto.apartmentPattern });
+          const tplApt = apts.find((x) => x.roomKeys.some((k) => pattern.templateRoomKeys?.includes(k)));
+          targets = apts
+            .filter((x) => x !== tplApt && (!a.targetsAuto!.sameTypeOnly || !tplApt || x.type === tplApt.type))
+            .map((x) => ({ id: x.id, roomKeys: x.roomKeys }));
+          if (!targets.length) return text({ error: "targetsAuto found no target apartments", apartments: apts.map((x) => ({ id: x.id, type: x.type, level: x.level })) });
+        }
+        if (!targets.length) return text({ error: "give targets or targetsAuto" });
         const all: Placed[] = []; const placements: any[] = []; const rooms: any[] = []; const perUnit: any[] = []; const unitsRooms: { unit: string; level?: string; rooms: any[] }[] = [];
-        for (const t of a.targets) {
-          const b = buildUnit(snap, t as UnitSelector, cfg);
+        for (const t of targets) {
+          if (t.mirrored === undefined && a.detectMirror && templateRooms.length) {
+            const probe = buildUnit(snap, t, cfg);
+            t.mirrored = detectMirrored(templateRooms, probe.rooms, cfg).mirrored;
+          }
+          const b = buildUnit(snap, t, cfg);
           const existing: Pt3[] = b.unit.designed.map((d) => d.point);
           const constraints = hostingConstraints(cfg, existing);
           const placed = replicate(pattern, b.unit, constraints, { slideStepMm: cfg.hosting.slideStep, slideMaxMm: cfg.hosting.slideMax, fallbackKinds: ["wall"] });
@@ -91,7 +130,7 @@ export function registerDesignPatternTools(server: McpServer) {
           all.push(...placed);
           placements.push(...toPlacements(placed, b.levelName, b.unit.id));
           rooms.push(...b.rooms.map((r) => ({ key: r.key, room: `${r.number} ${r.name}`, level: r.level, roomType: b.roomTypes[r.key], areaM2: r.areaM2 })));
-          perUnit.push({ unit: b.unit.id, level: b.levelName, ...summarize(placed), warnings: b.warnings });
+          perUnit.push({ unit: b.unit.id, level: b.levelName, mirrored: !!t.mirrored, ...summarize(placed), warnings: b.warnings });
           unitsRooms.push({ unit: b.unit.id, level: b.levelName, rooms: b.rooms });
         }
         const out = a.outputPath ?? a.patternPath.replace(/\.json$/i, "") + "_REPLICATE.json";

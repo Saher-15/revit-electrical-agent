@@ -224,3 +224,35 @@ test("tools: read → learn → replicate through MCP, proposal + HTML preview w
   const chk = await call("check_hosting", { snapshotPath: snapPath, roomFilter: "03-", role: "socket", x: 6000, y: 2950, z: 300 });
   assert.equal(chk.check, "behind-furniture");
 });
+
+test("units: apartments from room numbers, type labels, mirrored plan detection, auto targets", async () => {
+  const { listApartments, detectMirrored, apartmentIdOf } = await import("../build/pattern/adapters/revit-rooms/units.js");
+  assert.equal(apartmentIdOf({ number: "03-01-3", key: "k" }), "03-01");
+  assert.equal(apartmentIdOf({ number: "301", key: "k" }), "301");
+  assert.equal(apartmentIdOf({ number: "0412", key: "k" }), "041");
+  const snap = snapshot(true);
+  // a mirrored copy of apartment 03 on level 05: x -> 40000 - x
+  const mirror = (pts) => pts.map(([x, y]) => [40000 - x, y]);
+  for (const r of snapshot(false).rooms.filter((r) => r.key.startsWith("03-"))) snap.rooms.push({ ...r, key: r.key.replace("03-", "05-"), number: r.number.replace("03-", "05-"), level: "05", baseElevationMm: 6000, boundaryMm: mirror(r.boundaryMm) });
+  const base = snapshot(false);
+  for (const f of base.furniture.filter((f) => f.roomKey === undefined && f.xyzMm[0] < 10000)) {
+    snap.furniture.push({ ...f, id: f.id + 500, xyzMm: [40000 - f.xyzMm[0], f.xyzMm[1], 6000], bboxMinMm: [40000 - f.bboxMaxMm[0], f.bboxMinMm[1], 6000], bboxMaxMm: [40000 - f.bboxMinMm[0], f.bboxMaxMm[1], 6000 + (f.bboxMaxMm[2] - f.bboxMinMm[2])] });
+  }
+  for (const d of base.doors.filter((d) => d.xyzMm[0] < 10000)) snap.doors.push({ ...d, id: d.id + 500, xyzMm: [40000 - d.xyzMm[0], d.xyzMm[1], 6000], facing: [-d.facing[0], d.facing[1]], fromRoomKey: d.fromRoomKey.replace("03-", "05-") });
+  snap.levels.push({ id: 3, name: "05", elevationMm: 6000 });
+  const apts = listApartments(snap, cfg);
+  assert.deepEqual(apts.map((a) => a.id).sort(), ["03", "04", "05"]);
+  assert.ok(apts.every((a) => a.type === "A"), JSON.stringify(apts.map((a) => [a.id, a.type, a.signature])));
+  const tpl = snap.rooms.filter((r) => r.key.startsWith("03-"));
+  assert.equal(detectMirrored(tpl, snap.rooms.filter((r) => r.key.startsWith("04-")), cfg).mirrored, false);
+  const m = detectMirrored(tpl, snap.rooms.filter((r) => r.key.startsWith("05-")), cfg);
+  assert.equal(m.mirrored, true);
+  assert.equal(m.axis, "x");
+  // replicate to the mirrored apartment: the left bed socket must land on the mirrored side
+  const t = buildUnit(snap, { roomFilter: "03-" }, cfg);
+  const p = learn(t.unit, learnOpts);
+  const u = buildUnit(snap, { roomFilter: "05-", mirrored: true }, cfg);
+  const placed = replicate(p, u.unit, hostingConstraints(cfg, []), { fallbackKinds: ["wall"] });
+  const sockets = placed.filter((x) => x.role === "socket" && x.parent === "05-MBR").map((x) => x.point[0]).sort((a, b) => a - b);
+  assert.deepEqual(sockets, [40000 - 3100, 40000 - 900]);
+});

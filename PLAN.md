@@ -35,10 +35,10 @@ Acceptance
 - On the target apartment: ≥ 85 % of points placed or moved ≤ 300 mm, 0 points behind furniture or on glass walls, every point with Schedule Level = 04.
 - Time per apartment (offline part) < 10 s; placement limited by Revit (~16 s per element today, see Phase 4).
 
-## Phase 3 — Apartment types, mirroring, whole building (☐)
+## Phase 3 — Apartment types, mirroring, whole building (◐)
 Deliverables
-1. Mirrored-apartment detection (compare room polygons of template vs target under reflection) and `mirrored` auto-flag.
-2. Apartment-type mapping (A, A', B...) from room sets; one pattern per type, learned from one example of each.
+1. ☑ Mirrored-apartment detection (room-type layout under reflection about X/Y) → `mirrored` auto-flag in `replicate_design_pattern` (`detectMirror`).
+2. ☑ `list_design_units`: apartments from room-number prefixes, type labels A/B/C from room-type signature + area; `targetsAuto` replicates to every apartment of the template's type. ☐ one pattern per type with automatic pairing.
 3. Fallback to room-type defaults (`room-rules.md`) when an anchor is missing, reported per point.
 4. Circuits: group replicated devices per apartment into circuits with `create_electrical_circuit` to the apartment panel (separate approval).
 5. Comparison workbook: Claude's replication vs the engineer's manual floors (counts per role per room type, moved/dropped ratio, `review_model` errors) — extends the existing `compare03` sheet.
@@ -50,7 +50,7 @@ Acceptance
 1. Placement speed: batch host search per wall instead of ray casting per element (target < 3 s per element), progress reporting per batch.
 2. Snapshot v3: optional element solids (for clash detection), caching per model version.
 3. Installer: one `install.ps1` (add-in + server + skill + office.json template), version stamp, `releases/` zips per Revit year.
-4. CI: GitHub Actions running `npm test`, `dotnet test`, and `dotnet build` against 2025/2026 API packages on every push.
+4. ☑ CI: GitHub Actions (`.github/workflows/ci.yml`) runs `npm test`, the Revit 2025/2026 compile check and `dotnet test` on every push.
 5. Workshop kit (`docs/workshop/`): slides outline, sample model, exercises.
 
 Acceptance: a new PC goes from zero to "Open Claude" in 30 minutes using only the README.
