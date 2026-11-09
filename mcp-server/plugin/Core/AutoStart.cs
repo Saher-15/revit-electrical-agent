@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.DB;
@@ -22,6 +23,7 @@ namespace revit_mcp_plugin.Core
     ///     "localPath": "C:\\models\\building.rvt",
     ///     "detach": "preserve" | "discard" | "none",
     ///     "worksets": "all" | "lastViewed" | "editable" | "none",
+    ///     "closeWorksets": ["ST", "Steel"],                // optional: open all worksets except those whose name contains one of these
     ///     "saveAs": "C:\\models\\building_local.rvt",  // optional: save the opened (detached) model as a local file
     ///     "reloadLinks": true,                            // default true: reload links that are not loaded after the open
     ///     "linksFolder": "C:\\models\\links"            // optional: local copies of the linked models, matched by file name
@@ -90,7 +92,26 @@ namespace revit_mcp_plugin.Core
                             case "editable": wsOpt = WorksetConfigurationOption.OpenAllWorksets; break;
                             case "none": wsOpt = WorksetConfigurationOption.CloseAllWorksets; break;
                         }
-                        opts.SetOpenWorksetsConfiguration(new WorksetConfiguration(wsOpt));
+                        var wsConfig = new WorksetConfiguration(wsOpt);
+                        var closeWs = open["closeWorksets"] as JArray;
+                        if (closeWs != null && closeWs.Count > 0 && modelPath != null)
+                        {
+                            // Open everything except worksets whose name contains one of the given texts (case-insensitive):
+                            // used to skip heavy or troublesome links (e.g. a structural link whose steel data hangs Revit).
+                            var keys = closeWs.Select(t => t.ToString()).Where(k => !string.IsNullOrWhiteSpace(k)).ToList();
+                            var toClose = new List<WorksetId>();
+                            var names = new List<string>();
+                            foreach (var ws in WorksharingUtils.GetUserWorksetInfo(modelPath))
+                            {
+                                names.Add(ws.Name);
+                                if (keys.Any(k => ws.Name.IndexOf(k, StringComparison.OrdinalIgnoreCase) >= 0)) toClose.Add(ws.Id);
+                            }
+                            Log("user worksets: " + string.Join(" | ", names));
+                            wsConfig = new WorksetConfiguration(WorksetConfigurationOption.OpenAllWorksets);
+                            wsConfig.Close(toClose);
+                            Log("closing " + toClose.Count + " workset(s) matching: " + string.Join(", ", keys));
+                        }
+                        opts.SetOpenWorksetsConfiguration(wsConfig);
                         Log("Opening " + ModelPathUtils.ConvertModelPathToUserVisiblePath(modelPath) + " detach=" + opts.DetachFromCentralOption);
                         var uidoc = uiapp.OpenAndActivateDocument(modelPath, opts, false);
                         Log("Opened: " + uidoc.Document.Title + " (workshared=" + uidoc.Document.IsWorkshared + ")");
