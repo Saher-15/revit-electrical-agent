@@ -23,12 +23,12 @@ Acceptance
 
 Needs Saher ⚠: run `install-electrical.ps1 -RevitYear 2025` (and 2026), restart Revit. Unsaved work in the live model is lost at restart; Save As a detached copy first.
 
-## Phase 2 — First replicated floor on the pilot building (☐)
+## Phase 2 — First replicated floor on the pilot building (◐ 2026-11-09: snapshots 02–05 done; template = Avir's apartment F (686) on 02; replication to 711 on 03 = 58/58 placed in preview; apply pending Saher's approval)
 Deliverables
-1. Snapshot of KYM-EL-101-5 with the architect link, level 03 (the template) and level 04 (target), `includeArchitecture: true`.
-2. `read_design_unit` on one apartment of 03 → check the room types and anchors with Saher; tune `office.json` keywords for the office's family names (Hebrew/English).
-3. `learn_design_pattern` on that apartment → rule table reviewed by Saher.
-4. `replicate_design_pattern` to the same apartment type on level 04 → preview; `apply_electrical_design` after approval, in a **detached copy** of the model.
+1. ☑ Snapshot of KYM-EL-101-5 with the architect link, levels 02–05, `includeArchitecture: true` (local detached copy `KYM-EL-101-5_local.rvt`). Floor 03 holds only 17 devices (the earlier floor-03 design was never saved), so the template is Avir's apartment on 02 and the first target is 03.
+2. ☑ `read_design_unit` on apartment F/686 of 02: 7 rooms, all typed; 60 devices; anchors incl. 15 doors. Lessons folded into the engine: linked rooms carry the architect's level names → floor from door elevations; duplicate rooms/doors/furniture; open kitchens; apartments grouped by door connectivity; wall checks only for wall-hosted devices; finish layers; appliance sockets; rules per room ordinal.
+3. ☑ `learn_design_pattern`: 58 rules from 60 devices (97 %); 2 luminaires without an anchor within 2.5 m. Rule table pending Saher's review.
+4. ◐ `replicate_design_pattern` to apartment 711 on 03 (same type, found by `targetsAuto`): 58/58, 57 placed, 1 moved 100 mm (door frame), 0 dropped. `apply_electrical_design` in the local copy awaits Saher's explicit approval (PC permission check).
 5. ☑ HTML preview per unit for replication (rooms, furniture footprints, points coloured placed/moved/dropped with reasons) — `<proposal>.html`.
 
 Acceptance
