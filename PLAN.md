@@ -28,7 +28,7 @@ Deliverables
 2. `read_design_unit` on one apartment of 03 → check the room types and anchors with Saher; tune `office.json` keywords for the office's family names (Hebrew/English).
 3. `learn_design_pattern` on that apartment → rule table reviewed by Saher.
 4. `replicate_design_pattern` to the same apartment type on level 04 → preview; `apply_electrical_design` after approval, in a **detached copy** of the model.
-5. HTML preview per level for replication (plan with points, colours by status) like `propose_electrical_design` has.
+5. ☑ HTML preview per unit for replication (rooms, furniture footprints, points coloured placed/moved/dropped with reasons) — `<proposal>.html`.
 
 Acceptance
 - ≥ 90 % of the engineer's devices in the template get a rule with a plausible anchor (reviewed by Saher).

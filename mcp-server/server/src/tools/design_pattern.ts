@@ -9,6 +9,7 @@ import { loadSnapshot } from "../analysis/snapshot.js";
 import { learn, replicate, summarize, Pattern, Pt3, Placed } from "../pattern/core.js";
 import { buildUnit, hostingConstraints, toPlacements, UnitSelector } from "../pattern/adapters/revit-rooms/adapter.js";
 import { loadOfficeConfig } from "../pattern/adapters/revit-rooms/config.js";
+import { replicationPreviewHtml } from "../pattern/adapters/revit-rooms/preview.js";
 
 const selector = {
   roomKeys: z.array(z.string()).optional().describe("Room keys of the unit (from the snapshot)"),
@@ -80,7 +81,7 @@ export function registerDesignPatternTools(server: McpServer) {
         const cfg = loadOfficeConfig(a.officeConfigPath);
         const snap = loadSnapshot(a.snapshotPath);
         const pattern = JSON.parse(fs.readFileSync(a.patternPath, "utf8")) as Pattern;
-        const all: Placed[] = []; const placements: any[] = []; const rooms: any[] = []; const perUnit: any[] = [];
+        const all: Placed[] = []; const placements: any[] = []; const rooms: any[] = []; const perUnit: any[] = []; const unitsRooms: { unit: string; level?: string; rooms: any[] }[] = [];
         for (const t of a.targets) {
           const b = buildUnit(snap, t as UnitSelector, cfg);
           const existing: Pt3[] = b.unit.designed.map((d) => d.point);
@@ -91,10 +92,13 @@ export function registerDesignPatternTools(server: McpServer) {
           placements.push(...toPlacements(placed, b.levelName, b.unit.id));
           rooms.push(...b.rooms.map((r) => ({ key: r.key, room: `${r.number} ${r.name}`, level: r.level, roomType: b.roomTypes[r.key], areaM2: r.areaM2 })));
           perUnit.push({ unit: b.unit.id, level: b.levelName, ...summarize(placed), warnings: b.warnings });
+          unitsRooms.push({ unit: b.unit.id, level: b.levelName, rooms: b.rooms });
         }
         const out = a.outputPath ?? a.patternPath.replace(/\.json$/i, "") + "_REPLICATE.json";
         fs.writeFileSync(out, JSON.stringify({ kind: "replication", patternPath: a.patternPath, snapshotPath: a.snapshotPath, createdAt: new Date().toISOString(), rooms, placements, details: all }, null, 1), "utf8");
-        return text({ proposalPath: out, placements: placements.length, ...summarize(all), perUnit });
+        const previewPath = out.replace(/\.json$/i, "") + ".html";
+        fs.writeFileSync(previewPath, replicationPreviewHtml(snap, unitsRooms, all), "utf8");
+        return text({ proposalPath: out, previewPath, placements: placements.length, ...summarize(all), perUnit });
       } catch (e) { return fail("replicate_design_pattern", e); }
     }
   );

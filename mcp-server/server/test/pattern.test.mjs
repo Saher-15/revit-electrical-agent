@@ -191,3 +191,36 @@ test("linear adapter: poles learned on one station continue along the whole alig
   assert.deepEqual(all.filter((p) => p.role === "catenary_pole").map((p) => p.point[0]), [70000, 130000, 190000, 250000]);
   assert.ok(all.every((p) => p.status === "placed"));
 });
+
+test("tools: read → learn → replicate through MCP, proposal + HTML preview written", async () => {
+  const os = await import("os");
+  const { McpServer } = await import("@modelcontextprotocol/sdk/server/mcp.js");
+  const { Client } = await import("@modelcontextprotocol/sdk/client/index.js");
+  const { InMemoryTransport } = await import("@modelcontextprotocol/sdk/inMemory.js");
+  const { registerDesignPatternTools } = await import("../build/tools/design_pattern.js");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "dbe-"));
+  const snapPath = path.join(dir, "model.json");
+  fs.writeFileSync(snapPath, JSON.stringify(snapshot(true)));
+  const server = new McpServer({ name: "t", version: "1" });
+  registerDesignPatternTools(server);
+  const [a, b] = InMemoryTransport.createLinkedPair();
+  await server.connect(a);
+  const client = new Client({ name: "c", version: "1" });
+  await client.connect(b);
+  const call = async (name, args) => JSON.parse((await client.callTool({ name, arguments: args })).content[0].text);
+  const read = await call("read_design_unit", { snapshotPath: snapPath, roomFilter: "03-" });
+  assert.equal(read.unitType, "apartment");
+  assert.equal(read.featuresByKind.bed, 1);
+  const learned = await call("learn_design_pattern", { snapshotPath: snapPath, roomFilter: "03-" });
+  assert.equal(learned.rules, 7);
+  assert.ok(fs.existsSync(learned.patternPath));
+  const rep = await call("replicate_design_pattern", { patternPath: learned.patternPath, snapshotPath: snapPath, targets: [{ roomFilter: "04-", id: "apt-04" }] });
+  assert.equal(rep.placements, 7);
+  assert.equal(rep.byStatus.moved, 1);
+  const proposal = JSON.parse(fs.readFileSync(rep.proposalPath, "utf8"));
+  assert.ok(proposal.placements.every((p) => p.scheduleLevel === "04" && p.location && p.hostMode));
+  const html = fs.readFileSync(rep.previewPath, "utf8");
+  assert.ok(html.includes("<svg") && html.includes("apt-04"));
+  const chk = await call("check_hosting", { snapshotPath: snapPath, roomFilter: "03-", role: "socket", x: 6000, y: 2950, z: 300 });
+  assert.equal(chk.check, "behind-furniture");
+});
