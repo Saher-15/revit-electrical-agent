@@ -36,6 +36,52 @@ export interface SnapshotDoor {
   toRoomKey?: string;
 }
 
+/** Furniture, casework, plumbing fixtures, equipment from the host model and its links (schemaVersion 2+). */
+export interface SnapshotFurniture {
+  id: number;
+  source: string;
+  category: string;
+  builtInCategory: string;
+  family?: string;
+  type?: string;
+  level?: string;
+  roomKey?: string;
+  xyzMm: number[];
+  bboxMinMm: number[];
+  bboxMaxMm: number[];
+  facing?: number[];
+  hostId?: number;
+}
+
+/** Windows from the host model and its links (schemaVersion 2+). */
+export interface SnapshotWindow {
+  id: number;
+  source: string;
+  level?: string;
+  family?: string;
+  type?: string;
+  xyzMm: number[];
+  widthMm: number;
+  sillMm: number;
+  headMm: number;
+  alongWall: number[];
+  facing: number[];
+  roomKeys?: string[];
+}
+
+/** Walls from the host model and its links (schemaVersion 2+): centre line, thickness and type for clean-wall checks. */
+export interface SnapshotWall {
+  id: number;
+  source: string;
+  level?: string;
+  type: string;
+  startMm: number[];
+  endMm: number[];
+  thicknessMm: number;
+  heightMm?: number;
+  roomKeys?: string[];
+}
+
 export interface SnapshotElement {
   id: number;
   category: string;
@@ -125,6 +171,9 @@ export interface ModelSnapshot {
   categoryCounts: Record<string, number>;
   rooms: SnapshotRoom[];
   doors: SnapshotDoor[];
+  furniture?: SnapshotFurniture[];
+  windows?: SnapshotWindow[];
+  walls?: SnapshotWall[];
   elements: SnapshotElement[];
   raceways: SnapshotRaceway[];
   panels: SnapshotPanel[];
@@ -139,7 +188,7 @@ export function loadSnapshot(path: string): ModelSnapshot {
   if (!snap || typeof snap !== "object" || !Array.isArray(snap.elements)) {
     throw new Error(`${path} is not a model snapshot (run export_model_snapshot first)`);
   }
-  for (const key of ["rooms", "doors", "raceways", "panels", "circuitsWithoutPanel", "levels", "links", "distributionSystems", "warnings"] as const) {
+  for (const key of ["rooms", "doors", "furniture", "windows", "walls", "raceways", "panels", "circuitsWithoutPanel", "levels", "links", "distributionSystems", "warnings"] as const) {
     if (!Array.isArray(snap[key])) (snap as any)[key] = [];
   }
   return snap;

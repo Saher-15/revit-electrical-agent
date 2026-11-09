@@ -1,4 +1,6 @@
-# Apartment pattern format (learn → replicate)
+# Pattern format (learn → replicate)
+
+Written by `learn_design_pattern` (engine: `mcp-server/server/src/pattern/core.ts`). Read a rule to the engineer as: "<role> in <room type>, <along> mm along the <anchor> (negative = left, looking at it from the room), <across> mm from its face, <height> mm above the floor".
 
 `<snapshot>_PATTERN.json`
 

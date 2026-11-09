@@ -15,7 +15,7 @@
         "prebuild": "npm run clean",
         "build": "tsc",
         "prepublishOnly": "npm run build",
-        "test": "npm run build && node --test test/production.test.mjs test/tools.test.mjs"
+        "test": "npm run build && node --test test/production.test.mjs test/tools.test.mjs test/pattern.test.mjs"
     },
     "files": [
         "build",
