@@ -1,0 +1,15 @@
+node_modules/
+mcp-server/server/build/
+mcp-server/server/revit-data.db
+**/bin/
+**/obj/
+.vs/
+*.user
+*.suo
+*.log
+*.tmp
+.claude/
+.DS_Store
+_claude_*
+*.zip
+*.tgz

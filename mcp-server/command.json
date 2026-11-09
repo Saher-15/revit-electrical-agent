@@ -1,0 +1,252 @@
+{
+  "name": "RevitMCPCommandSet",
+  "description": "Basic command collection for Revit AI assistance",
+  "developer": {
+    "name": "mcp-servers-for-revit",
+    "email": "",
+    "website": "",
+    "organization": "mcp-servers-for-revit"
+  },
+  "commands": [
+    {
+      "commandName": "say_hello",
+      "description": "Displays a greeting dialog",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "get_available_family_types",
+      "description": "get available family types",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "get_current_view_elements",
+      "description": "get current view elements",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "get_current_view_info",
+      "description": "get current view info",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "get_selected_elements",
+      "description": "get selected elements",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_point_based_element",
+      "description": "Create point-based elements like furniture",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_line_based_element",
+      "description": "Create line based element such as wall",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_surface_based_element",
+      "description": "Create surface-based elements like floors",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "color_splash",
+      "description": "Color elements by parameter value",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "tag_walls",
+      "description": "Tag all the walls in the model",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "delete_element",
+      "description": "Deletes elements using ElementId",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "ai_element_filter",
+      "description": "AI element filter for querying elements by criteria",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "operate_element",
+      "description": "Operate on elements (select, color, hide, isolate, etc)",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "export_room_data",
+      "description": "Extract all rooms with detailed properties including area, volume, perimeter, and parameters",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "get_material_quantities",
+      "description": "Calculate material quantities and takeoffs with area and volume calculations per material",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "analyze_model_statistics",
+      "description": "Analyze model complexity with element counts by category, type, family, and level",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_grid",
+      "description": "Create grid system with smart spacing generation for project layout (alphabetic/numeric naming)",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_structural_framing_system",
+      "description": "Create structural beam framing system with configurable spacing and direction",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_room",
+      "description": "Create and place rooms at specified locations with custom names, numbers, and properties",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "tag_rooms",
+      "description": "Create tags for all rooms in the current view displaying room name and number",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_level",
+      "description": "Create levels at specified elevations with automatic floor plan view generation",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "send_code_to_revit",
+      "description": "Execute dynamic C# code in Revit with access to the Document and Revit API",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_dimensions",
+      "description": "Create dimension annotations between elements or points in the current view",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "place_electrical_element",
+      "description": "Place electrical fixtures/devices hosted on ceiling, wall, floor, level or reference plane",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_cable_tray",
+      "description": "Create cable tray runs with elbow fittings",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_conduit",
+      "description": "Create conduit runs with elbow fittings",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_electrical_circuit",
+      "description": "Create electrical circuits and connect them to a panel",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "get_electrical_summary",
+      "description": "Read panels, circuits, loads and electrical element counts",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "load_family",
+      "description": "Load .rfa families from a path or the Revit libraries",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "export_model_snapshot",
+      "description": "Export the whole model (rooms, electrical elements, raceways, panels, circuits) to a JSON file",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "get_documentation_info",
+      "description": "Read views, sheets, title blocks, tag types, styles and panels for drawing",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_views",
+      "description": "Create floor plans, ceiling plans, drafting views or duplicates",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_sheets",
+      "description": "Create sheets and place views, schedules and panel schedules",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "tag_elements",
+      "description": "Tag elements in a view by category or id, including linked rooms",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_schedule",
+      "description": "Create a schedule from a preset or fields, optionally on a sheet",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_panel_schedules",
+      "description": "Create panel schedules and place them on a sheet",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_wires",
+      "description": "Draw wiring and home runs for circuits in a plan view",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_annotations",
+      "description": "Add text notes, detail lines and circles to a view",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "export_views",
+      "description": "Export views or sheets to PNG/JPG/PDF",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_family",
+      "description": "Build a new family from a template and load it",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "edit_family",
+      "description": "Read or change a loaded family's parameters, types and connector",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "set_family_type",
+      "description": "Duplicate project types and set type parameters",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "copy_level_elements",
+      "description": "Copy a level's electrical elements to other levels, with a dry run",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "read_cad_link",
+      "description": "Read layers, lines, arcs, blocks and walls of linked DWG files",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "sheet_point_to_model",
+      "description": "Map sheet/PDF positions to model coordinates and nearby elements",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "get_title_block_fields",
+      "description": "List title block, sheet and project information fields",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "fill_title_blocks",
+      "description": "Fill title block fields on many sheets and report empty ones",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "place_stamp",
+      "description": "Place the engineer stamp image on approved sheets",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    }
+  ]
+}
