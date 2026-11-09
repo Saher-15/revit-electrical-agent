@@ -275,10 +275,11 @@ test("real-model lessons: link levels by door elevation, duplicate rooms, door g
   const rooms = [
     room("L1:711", "711", "סלון", 0, 6000, 0, 4000), room("L1:712", "712", "ח. שינה", 0, 3500, 4200, 7500), room("L1:713", "713", "ח. שינה", 3700, 6000, 4200, 7500),
     room("L1:900", "900", "מסדרון", -3000, -200, 0, 7500),
+    room("L1:714", "714", "מטבח", 6000, 9000, 0, 4000), // open to the living room: no door
     room("L1:2082", "2082", "סלון", 0, 6000, 0, 4000), room("L1:2083", "2083", "ח. שינה", 0, 3500, 4200, 7500), room("L1:2084", "2084", "ח. שינה", 3700, 6000, 4200, 7500),
   ];
   const door = (id, x, y, facing) => ({ id, source: "Arch", level: "09", xyzMm: [x, y, z], widthMm: 900, alongWall: [1, 0], facing, wallThicknessMm: 200 });
-  const doors = [door(1, 1000, 4100, [0, 1]), door(2, 4800, 4100, [0, 1]), door(3, -100, 2000, [1, 0])];
+  const doors = [door(1, 1000, 4100, [0, 1]), door(2, 4800, 4100, [0, 1]), door(3, -100, 2000, [1, 0]), door(4, 1000, 4100, [0, 1]) /* duplicate */];
   doors[2].alongWall = [0, 1];
   const snap = { schemaVersion: 2, exportedAt: "", revitVersion: "2025", document: { title: "t", path: "", isWorkshared: false, projectInfo: {} },
     levels: [{ id: 1, name: "01", elevationMm: 4280 }, { id: 2, name: "02", elevationMm: 7580 }, { id: 3, name: "09", elevationMm: 29140 }], links: [], categoryCounts: {},
@@ -290,13 +291,16 @@ test("real-model lessons: link levels by door elevation, duplicate rooms, door g
       { id: 4, category: "Electrical Fixtures", builtInCategory: "OST_ElectricalFixtures", family: "Socket", type: "16A", typeId: 1, xyzMm: [5500, 4250, z + 300], parameters: {} },
     ], raceways: [], panels: [], circuitsWithoutPanel: [], distributionSystems: [], warnings: [] };
 
-  assert.equal(dedupeRooms(rooms).length, 4, "duplicate rooms at the same spot collapse");
+  assert.equal(dedupeRooms(rooms).length, 5, "duplicate rooms at the same spot collapse");
   const groups = groupRoomsByDoors(snap, dedupeRooms(rooms), cfg);
-  assert.deepEqual(groups.map((g) => g.map((r) => r.number).sort()), [["711", "712", "713"]], "door-connected rooms form the apartment, corridor excluded");
-  const apts = listApartments(snap, cfg);
-  assert.equal(apts.length, 1); assert.equal(apts[0].rooms.length, 3);
+  assert.deepEqual(groups.map((g) => g.map((r) => r.number).sort()), [["711", "712", "713", "714"]], "door-connected rooms + the open kitchen form the apartment, corridor excluded");
+  assert.equal(listApartments(snap, cfg, { levelName: "09" }).length, 0, "level filter uses the host level");
+  const apts = listApartments(snap, cfg, { levelName: "02" });
+  assert.equal(apts.length, 1); assert.equal(apts[0].rooms.length, 4); assert.equal(apts[0].level, "02");
 
   const built = buildUnit(snap, { roomKeys: ["L1:711", "L1:712", "L1:713"] }, cfg);
+  assert.equal(built.unit.features.filter((f) => f.kind === "door" && f.parent === "L1:712").length, 1, "duplicate door collapsed");
+  assert.equal(buildUnit(snap, { levelName: "02", roomFilter: "71" }, cfg).rooms.length, 4, "levelName selects by host level");
   assert.equal(built.levelName, "02", "host level comes from the doors' elevation, not the link level name");
   assert.equal(built.unit.baseZ, 7580);
   assert.ok(built.unit.parentOrder.length === 3);

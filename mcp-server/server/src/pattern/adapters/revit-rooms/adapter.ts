@@ -69,6 +69,40 @@ export function dedupeRooms(rooms: SnapshotRoom[]): SnapshotRoom[] {
   return kept;
 }
 
+/** Doors the architect model holds twice at one spot (design options, duplicate link) collapse to one. */
+export function dedupeDoors(doors: SnapshotDoor[]): SnapshotDoor[] {
+  const kept: SnapshotDoor[] = [];
+  for (const d of doors) {
+    if (!kept.some((k) => Math.hypot(k.xyzMm[0] - d.xyzMm[0], k.xyzMm[1] - d.xyzMm[1]) < 100 && Math.abs(k.xyzMm[2] - d.xyzMm[2]) < 500)) kept.push(d);
+  }
+  return kept;
+}
+
+/**
+ * Host level of a room by elevation: where its doors (or furniture) stand in host coordinates, nearest host level.
+ * Linked rooms carry the architect's level names and elevations, which can differ from the host's.
+ */
+const floorZCache = new WeakMap<ModelSnapshot, Map<string, number | undefined>>();
+export function roomHostLevel(snap: ModelSnapshot, room: SnapshotRoom): string | undefined {
+  const median = (v: number[]) => { const a = [...v].sort((x, y) => x - y); return a.length ? a[Math.floor(a.length / 2)] : undefined; };
+  // Floor of the whole (source, link level) group from its doors: rooms without doors (open kitchens) inherit it.
+  let cache = floorZCache.get(snap);
+  if (!cache) { cache = new Map(); floorZCache.set(snap, cache); }
+  const groupKey = `${room.source}|${room.level}`;
+  if (!cache.has(groupKey)) {
+    const group = snap.rooms.filter((r) => r.source === room.source && r.level === room.level && r.boundaryMm && r.boundaryMm.length >= 3);
+    cache.set(groupKey, median(snap.doors.filter((d) => doorRooms(d, group).length).map((d) => d.xyzMm[2])));
+  }
+  const z = median(snap.doors.filter((d) => doorRooms(d, [room]).length).map((d) => d.xyzMm[2]))
+    ?? cache.get(groupKey)
+    ?? median((snap.furniture ?? []).filter((f) => f.roomKey === room.key || pointInPolygonLoose(p2(f.xyzMm), room)).map((f) => f.bboxMinMm[2]))
+    ?? room.baseElevationMm;
+  if (z === undefined || !snap.levels.length) return room.level;
+  if (snap.levels.some((l) => l.name === room.level && Math.abs(l.elevationMm - z) <= 1500)) return room.level;
+  const best = [...snap.levels].sort((a, b) => Math.abs(a.elevationMm - z) - Math.abs(b.elevationMm - z))[0];
+  return Math.abs(best.elevationMm - z) <= 1500 ? best.name : room.level;
+}
+
 /** Rooms a door opens into: the model's room keys when they match, else the rooms just inside each face of its wall. */
 export function doorRooms(d: SnapshotDoor, rooms: SnapshotRoom[]): SnapshotRoom[] {
   const dp = p2(d.xyzMm);
@@ -82,7 +116,7 @@ function selectRooms(snap: ModelSnapshot, sel: UnitSelector): SnapshotRoom[] {
   let rooms = dedupeRooms(snap.rooms.filter((r) => r.kind === "Room" && r.boundaryMm && r.boundaryMm.length >= 3));
   if (sel.roomKeys?.length) rooms = rooms.filter((r) => sel.roomKeys!.includes(r.key));
   if (sel.roomFilter) { const f = sel.roomFilter.toLowerCase(); rooms = rooms.filter((r) => `${r.number} ${r.name} ${r.key}`.toLowerCase().includes(f)); }
-  if (sel.levelName) { const f = sel.levelName.toLowerCase(); rooms = rooms.filter((r) => (r.level ?? "").toLowerCase().includes(f)); }
+  if (sel.levelName) { const f = sel.levelName.toLowerCase(); rooms = rooms.filter((r) => (roomHostLevel(snap, r) ?? r.level ?? "").toLowerCase().includes(f)); }
   return rooms;
 }
 
@@ -195,7 +229,7 @@ export function buildUnit(snap: ModelSnapshot, sel: UnitSelector, cfg: OfficeCon
   }
 
   // doors: anchored on the wall they sit in, tagged with the handle side as seen from inside the room
-  for (const d of snap.doors) {
+  for (const d of dedupeDoors(snap.doors)) {
     const dp = p2(d.xyzMm);
     for (const r of doorRooms(d, rooms)) {
       const nw = nearestWall(dp, wallsByRoom.get(r.key)!);
@@ -343,7 +377,7 @@ export function hostingConstraints(cfg: OfficeConfig, existing: Pt3[] = []): Con
       if (!wallDevice(c)) return { ok: true };
       for (const f of u.features) {
         if (f.parent !== c.parent || !f.tags?.includes("blocks-wall") || !f.dir) continue;
-        if (c.props?.behindAppliance && (c.feature.id === f.id || c.feature.kind === f.kind)) continue;
+        if (c.props?.behindAppliance) continue; // the engineer's own point sat inside such a footprint on purpose
         if (inFootprint(c.point, f)) return { ok: false, check: "behind-furniture", reason: `behind ${f.kind} ${f.id}` };
       }
       return { ok: true };

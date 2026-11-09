@@ -1,7 +1,7 @@
 // Finding units (apartments) in a snapshot, grouping them into types, and detecting mirrored plans.
 import { ModelSnapshot, SnapshotRoom } from "../../../analysis/snapshot.js";
 import { OfficeConfig, roomTypeId } from "./config.js";
-import { dedupeRooms, doorRooms } from "./adapter.js";
+import { dedupeDoors, dedupeRooms, doorRooms, roomHostLevel } from "./adapter.js";
 
 export interface ApartmentInfo {
   id: string;
@@ -42,13 +42,48 @@ export function groupRoomsByDoors(snap: ModelSnapshot, rooms: SnapshotRoom[], cf
   const parent = new Map<string, string>(privateRooms.map((r) => [r.key, r.key]));
   const find = (k: string): string => { let x = k; while (parent.get(x) !== x) x = parent.get(x)!; parent.set(k, x); return x; };
   const union = (a: string, b: string) => { const ra = find(a), rb = find(b); if (ra !== rb) parent.set(ra, rb); };
-  for (const d of snap.doors) {
+  for (const d of dedupeDoors(snap.doors)) {
     const rs = doorRooms(d, privateRooms);
     for (let i = 1; i < rs.length; i++) union(rs[0].key, rs[i].key);
+  }
+  // A room with no door at all (open kitchen, dining nook) belongs with the room it shares the longest wall with.
+  const doored = new Set(dedupeDoors(snap.doors).flatMap((d) => doorRooms(d, privateRooms).map((r) => r.key)));
+  for (const r of privateRooms) {
+    if (doored.has(r.key)) continue;
+    let best: { key: string; shared: number } | undefined;
+    for (const o of privateRooms) {
+      if (o.key === r.key) continue;
+      const shared = sharedBoundaryMm(r, o);
+      if (shared > 800 && (!best || shared > best.shared)) best = { key: o.key, shared };
+    }
+    if (best) union(r.key, best.key);
   }
   const groups = new Map<string, SnapshotRoom[]>();
   for (const r of privateRooms) { const root = find(r.key); groups.set(root, [...(groups.get(root) ?? []), r]); }
   return [...groups.values()];
+}
+
+/** Length of boundary the two rooms share: collinear, overlapping edges closer than 350 mm (a wall or an open edge). */
+function sharedBoundaryMm(a: SnapshotRoom, b: SnapshotRoom): number {
+  const pa = a.boundaryMm!, pb = b.boundaryMm!;
+  let total = 0;
+  for (let i = 0; i < pa.length; i++) {
+    const a1 = pa[i], a2 = pa[(i + 1) % pa.length];
+    const dx = a2[0] - a1[0], dy = a2[1] - a1[1], la = Math.hypot(dx, dy);
+    if (la < 50) continue;
+    const ux = dx / la, uy = dy / la;
+    for (let j = 0; j < pb.length; j++) {
+      const b1 = pb[j], b2 = pb[(j + 1) % pb.length];
+      const ex = b2[0] - b1[0], ey = b2[1] - b1[1], lb = Math.hypot(ex, ey);
+      if (lb < 50 || Math.abs(ux * ex + uy * ey) / lb < 0.97) continue;
+      const off = Math.abs(-uy * (b1[0] - a1[0]) + ux * (b1[1] - a1[1]));
+      if (off > 350) continue;
+      const t1 = ux * (b1[0] - a1[0]) + uy * (b1[1] - a1[1]), t2 = ux * (b2[0] - a1[0]) + uy * (b2[1] - a1[1]);
+      const lo = Math.max(0, Math.min(t1, t2)), hi = Math.min(la, Math.max(t1, t2));
+      if (hi > lo) total += hi - lo;
+    }
+  }
+  return total;
 }
 
 /** Numbering like "03-01-3" or "0412" encodes the apartment; a plain running number ("686", "711") does not. */
@@ -61,7 +96,8 @@ function numberingEncodesApartment(rooms: SnapshotRoom[]): boolean {
 
 export function listApartments(snap: ModelSnapshot, cfg: OfficeConfig, opts: { levelName?: string; apartmentPattern?: string; minRooms?: number; groupBy?: "auto" | "numbers" | "doors" } = {}): ApartmentInfo[] {
   const minRooms = opts.minRooms ?? 2;
-  const rooms = dedupeRooms(snap.rooms.filter((r) => r.kind === "Room" && r.boundaryMm && r.boundaryMm.length >= 3 && (!opts.levelName || (r.level ?? "").toLowerCase().includes(opts.levelName.toLowerCase()))));
+  const rooms = dedupeRooms(snap.rooms.filter((r) => r.kind === "Room" && r.boundaryMm && r.boundaryMm.length >= 3))
+    .filter((r) => !opts.levelName || (roomHostLevel(snap, r) ?? r.level ?? "").toLowerCase().includes(opts.levelName.toLowerCase()));
   const byNumbers = opts.groupBy === "numbers" || (opts.groupBy !== "doors" && (!!opts.apartmentPattern || numberingEncodesApartment(rooms)));
   const groups = new Map<string, SnapshotRoom[]>();
   if (byNumbers) {
@@ -79,7 +115,7 @@ export function listApartments(snap: ModelSnapshot, cfg: OfficeConfig, opts: { l
   for (const [id, rs] of groups) {
     if (rs.length < minRooms) continue;
     const typed = rs.map((r) => ({ key: r.key, number: r.number, name: r.name, type: roomTypeId(r.name, cfg), areaM2: r.areaM2 }));
-    out.push({ id, level: rs[0].level, roomKeys: rs.map((r) => r.key), rooms: typed, signature: typed.map((t) => t.type).sort().join(","), areaM2: Math.round(rs.reduce((s, r) => s + r.areaM2, 0) * 10) / 10 });
+    out.push({ id, level: roomHostLevel(snap, rs[0]) ?? rs[0].level, roomKeys: rs.map((r) => r.key), rooms: typed, signature: typed.map((t) => t.type).sort().join(","), areaM2: Math.round(rs.reduce((s, r) => s + r.areaM2, 0) * 10) / 10 });
   }
   // type labels: same signature and area within 15 % → same type
   const types: { sig: string; area: number; label: string }[] = [];
