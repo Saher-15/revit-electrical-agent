@@ -11,6 +11,7 @@ export interface SnapshotRoom {
   number: string;
   name: string;
   level?: string;
+  linkLevel?: string;  // level name inside the linked model, when the room comes from a link
   department?: string;
   areaM2: number;
   perimeterM: number;

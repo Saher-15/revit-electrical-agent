@@ -32,7 +32,7 @@
   },
   "roomTypes": [
     { "id": "master_bedroom", "keywords": ["חדר שינה הורים", "ח. הורים", "הורים", "master", "MBR"], "lux": 150 },
-    { "id": "bedroom", "keywords": ["חדר שינה", "ח.שינה", "ילדים", "bedroom"], "lux": 150 },
+    { "id": "bedroom", "keywords": ["חדר שינה", "ח.שינה", "ח. שינה", "ח שינה", "ילדים", "bedroom"], "lux": 150 },
     { "id": "living", "keywords": ["סלון", "מגורים", "living"], "lux": 150 },
     { "id": "dining", "keywords": ["פינת אוכל", "dining"], "lux": 150 },
     { "id": "kitchen", "keywords": ["מטבח", "kitchen"], "lux": 300 },

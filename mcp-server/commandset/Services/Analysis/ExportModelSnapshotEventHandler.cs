@@ -162,6 +162,8 @@ namespace RevitMCPCommandSet.Services.Analysis
                         var center = (min + max) / 2;
                         var level = doc.GetElement(fi.LevelId) as Level;
                         if (!LevelMatches(level?.Name, min.Z, isHost)) continue;
+                        // Elements of a non-primary design option are alternatives, not what gets built.
+                        if (fi.DesignOption != null && !fi.DesignOption.IsPrimary) continue;
                         // Skip tiny or huge things: hardware, and whole-floor generic models.
                         double sizeX = max.X - min.X, sizeY = max.Y - min.Y;
                         if (Math.Max(sizeX, sizeY) < ElectricalUtils.MmToFt(150) || Math.Min(sizeX, sizeY) > ElectricalUtils.MmToFt(15000)) continue;
@@ -176,7 +178,7 @@ namespace RevitMCPCommandSet.Services.Analysis
                             BuiltInCategory = bic.ToString(),
                             Family = fi.Symbol?.FamilyName,
                             Type = fi.Symbol?.Name,
-                            Level = level?.Name,
+                            Level = HostLevelName(level?.Name, min.Z, isHost),
                             XyzMm = Pt(p),
                             BboxMinMm = Pt(min),
                             BboxMaxMm = Pt(max),
@@ -217,7 +219,7 @@ namespace RevitMCPCommandSet.Services.Analysis
                     {
                         Id = w.Id.GetValue(),
                         Source = source,
-                        Level = level?.Name,
+                        Level = HostLevelName(level?.Name, p.Z, isHost),
                         Family = w.Symbol?.FamilyName,
                         Type = w.Symbol?.Name,
                         XyzMm = Pt(new XYZ(p.X, p.Y, levelZ + sillFt)),
@@ -257,7 +259,7 @@ namespace RevitMCPCommandSet.Services.Analysis
                     {
                         Id = wall.Id.GetValue(),
                         Source = source,
-                        Level = level?.Name,
+                        Level = HostLevelName(level?.Name, Math.Min(a.Z, b.Z), isHost),
                         Type = wall.WallType?.Name ?? wall.Name,
                         StartMm = Pt(a),
                         EndMm = Pt(b),
@@ -381,7 +383,7 @@ namespace RevitMCPCommandSet.Services.Analysis
                     {
                         Id = door.Id.GetValue(),
                         Source = link == null ? "host" : link.Name,
-                        Level = level?.Name,
+                        Level = HostLevelName(level?.Name, p.Z, link == null),
                         Family = door.Symbol?.FamilyName,
                         Type = door.Symbol?.Name,
                         XyzMm = Pt(p),
@@ -414,7 +416,8 @@ namespace RevitMCPCommandSet.Services.Analysis
                 Id = se.Id.GetValue(),
                 Number = se.Number,
                 Name = se.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? se.Name,
-                Level = level?.Name,
+                Level = HostLevelName(level?.Name, baseFt, source == "host"),
+                LinkLevel = source == "host" ? null : level?.Name,
                 Department = se.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT)?.AsString(),
                 AreaM2 = Math.Round(UnitUtils.ConvertFromInternalUnits(se.Area, UnitTypeId.SquareMeters), 2),
                 PerimeterM = Math.Round(UnitUtils.ConvertFromInternalUnits(se.Perimeter, UnitTypeId.Meters), 2),
@@ -750,6 +753,21 @@ namespace RevitMCPCommandSet.Services.Analysis
         private static string SpaceKey(Space space) => $"S:{space.Id.GetValue()}";
 
         // ---------------- helpers ----------------
+
+        /// <summary>
+        /// Linked elements carry the linked model's level names ("09" where the host says "02"), so give them the
+        /// name of the host level nearest at or below their elevation; host elements keep their own level name.
+        /// </summary>
+        private string HostLevelName(string ownLevelName, double zFt, bool isHost)
+        {
+            if (isHost || _levelElevFt.Count == 0 || double.IsNaN(zFt)) return ownLevelName;
+            double tol = ElectricalUtils.MmToFt(500);
+            long best = -1; double bestZ = double.MinValue;
+            foreach (var kv in _levelElevFt)
+                if (kv.Value <= zFt + tol && kv.Value > bestZ) { bestZ = kv.Value; best = kv.Key; }
+            if (best < 0) return ownLevelName;
+            return _levelNames[best];
+        }
 
         private bool LevelMatches(string levelName, double zFt, bool isHost)
         {

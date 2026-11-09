@@ -121,9 +121,17 @@ export function buildUnit(snap: ModelSnapshot, sel: UnitSelector, cfg: OfficeCon
   const rooms = selectRooms(snap, sel);
   if (!rooms.length) throw new Error("No rooms with boundaries match the selector. Rooms need a closed boundary in the snapshot.");
   const warnings: string[] = [];
-  const levelName = rooms[0].level;
-  const level = snap.levels.find((l) => l.name === levelName);
-  const baseZ = level?.elevationMm ?? rooms[0].baseElevationMm ?? 0;
+  // Linked rooms carry the architect's level names ("09" for the host's "02"), so resolve the host level by elevation
+  // when the name is unknown: the nearest host level at or below the room base (within 1.5 m).
+  const roomBase = rooms[0].baseElevationMm;
+  let level = snap.levels.find((l) => l.name === rooms[0].level);
+  if (!level && roomBase !== undefined) {
+    const below = snap.levels.filter((l) => l.elevationMm <= roomBase + 500).sort((a, b) => b.elevationMm - a.elevationMm);
+    if (below.length && roomBase - below[0].elevationMm < 1500) level = below[0];
+  }
+  const levelName = level?.name ?? rooms[0].level;
+  if (level && level.name !== rooms[0].level) warnings.push(`rooms carry level "${rooms[0].level}" (link); mapped to host level "${level.name}" by elevation`);
+  const baseZ = level?.elevationMm ?? roomBase ?? 0;
   const features: Feature[] = [];
   const parents: Record<string, string> = {};
   const roomTypes: Record<string, string> = {};
@@ -151,8 +159,13 @@ export function buildUnit(snap: ModelSnapshot, sel: UnitSelector, cfg: OfficeCon
   // doors: anchored on the wall they sit in, tagged with the handle side as seen from inside the room
   for (const d of snap.doors) {
     const dp = p2(d.xyzMm);
+    // The door point sits inside the wall, so also test a point just inside each face of the wall (room keys from the
+    // model are used when they match; linked doors often carry keys of another link instance).
+    const off = (d.wallThicknessMm ?? 200) / 2 + 60;
+    const fx = d.facing?.[0] ?? 0, fy = d.facing?.[1] ?? 0;
+    const probes: Pt2[] = [dp, [dp[0] + fx * off, dp[1] + fy * off], [dp[0] - fx * off, dp[1] - fy * off]];
     for (const r of rooms) {
-      if (d.fromRoomKey !== r.key && d.toRoomKey !== r.key && !pointInPolygonLoose(dp, r)) continue;
+      if (d.fromRoomKey !== r.key && d.toRoomKey !== r.key && !probes.some((q) => pointInPolygonLoose(q, r))) continue;
       const nw = nearestWall(dp, wallsByRoom.get(r.key)!);
       if (!nw || nw.dist > 400) continue;
       const seg = nw.seg;
@@ -177,12 +190,17 @@ export function buildUnit(snap: ModelSnapshot, sel: UnitSelector, cfg: OfficeCon
     }
   }
   // furniture and fixtures -> anchors with the wall they stand against
+  const seen: { kind: string; c: Pt2 }[] = [];
   for (const f of snap.furniture ?? []) {
     const a = anchorKind(`${f.family ?? ""} ${f.type ?? ""}`, cfg);
     if (!a) continue;
     const c = p2(f.xyzMm);
     const r = (f.roomKey && rooms.find((x) => x.key === f.roomKey)) || roomOf(c, rooms) || roomOf(bboxCenter(f), rooms);
     if (!r) continue;
+    // Architect models often hold the same piece twice (design options, nested shared families, copies): one anchor per spot.
+    const bc0 = bboxCenter(f);
+    if (seen.some((s) => s.kind === a.kind && Math.hypot(s.c[0] - bc0[0], s.c[1] - bc0[1]) < 80)) { warnings.push(`duplicate ${a.kind} ${f.id} skipped`); continue; }
+    seen.push({ kind: a.kind, c: bc0 });
     const segs = wallsByRoom.get(r.key)!;
     const bc = bboxCenter(f);
     const nw = nearestWall(bc, segs);

@@ -190,6 +190,8 @@ namespace RevitMCPCommandSet.Models.Analysis
         [JsonProperty("number")] public string Number { get; set; }
         [JsonProperty("name")] public string Name { get; set; }
         [JsonProperty("level")] public string Level { get; set; }
+        /// <summary>For linked rooms: the level name inside the linked model (Level above is the host level by elevation).</summary>
+        [JsonProperty("linkLevel", NullValueHandling = NullValueHandling.Ignore)] public string LinkLevel { get; set; }
         [JsonProperty("department")] public string Department { get; set; }
         [JsonProperty("areaM2")] public double AreaM2 { get; set; }
         [JsonProperty("perimeterM")] public double PerimeterM { get; set; }

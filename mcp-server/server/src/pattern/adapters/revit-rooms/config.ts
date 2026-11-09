@@ -41,7 +41,7 @@ export const DEFAULT_OFFICE_CONFIG: OfficeConfig = {
   },
   roomTypes: [
     { id: "master_bedroom", keywords: ["חדר שינה הורים", "ח. הורים", "הורים", "master", "mbr"] },
-    { id: "bedroom", keywords: ["חדר שינה", "ח.שינה", "ילדים", "bedroom"] },
+    { id: "bedroom", keywords: ["חדר שינה", "ח.שינה", "ח. שינה", "ח שינה", "ילדים", "bedroom"] },
     { id: "living", keywords: ["סלון", "מגורים", "living"] },
     { id: "dining", keywords: ["פינת אוכל", "dining"] },
     { id: "kitchen", keywords: ["מטבח", "kitchen"] },
