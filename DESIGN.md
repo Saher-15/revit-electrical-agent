@@ -135,6 +135,7 @@ Rules: every bug found in a model becomes a synthetic-snapshot test first. Tests
 - The server, snapshots, patterns and proposals stay on the engineer's PC (`Documents\RevitClaude`). Only what Claude reads in the conversation leaves the machine. Companies with an in-tenant rule run Claude through an enterprise/API account without training on data, and may redact the snapshot (`export_model_snapshot` options) before analysis.
 - Model-changing tools require an explicit approval step in the conversation; `send_code_to_revit` is disabled; stamping requires the engineer's written approval and is logged.
 - Nothing office-specific is in the repository: family names, prices, client documents and models live in the office's own folders.
+- Baselines and snapshots taken from real client models go in `tests/baselines/private/`, which git ignores; they never go to GitHub.
 
 ## 8. Roadmap
 
