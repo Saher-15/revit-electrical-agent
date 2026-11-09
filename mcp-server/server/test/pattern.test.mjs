@@ -263,3 +263,53 @@ test("units: apartments from room numbers, type labels, mirrored plan detection,
   const sockets = placed.filter((x) => x.role === "socket" && x.parent === "05-MBR").map((x) => x.point[0]).sort((a, b) => a - b);
   assert.deepEqual(sockets, [40000 - 3100, 40000 - 900]);
 });
+
+test("real-model lessons: link levels by door elevation, duplicate rooms, door grouping, per-bedroom rules, ceiling devices need no wall", async () => {
+  const { listApartments, groupRoomsByDoors } = await import("../build/pattern/adapters/revit-rooms/units.js");
+  const { dedupeRooms } = await import("../build/pattern/adapters/revit-rooms/adapter.js");
+  // Two bedrooms + living, linked rooms with the architect's level "09" at a wrong elevation; running room numbers; a
+  // duplicate copy of every room at the same spot; an entrance door to a corridor.
+  const z = 7580, linkZ = 9140;
+  const room = (key, number, name, x0, x1, y0, y1) => ({ key, kind: "Room", source: "Arch", id: 1, number, name, level: "09", areaM2: ((x1 - x0) * (y1 - y0)) / 1e6, perimeterM: 1, heightMm: 2700, baseElevationMm: linkZ,
+    boundaryMm: [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], centerMm: [(x0 + x1) / 2, (y0 + y1) / 2] });
+  const rooms = [
+    room("L1:711", "711", "סלון", 0, 6000, 0, 4000), room("L1:712", "712", "ח. שינה", 0, 3500, 4200, 7500), room("L1:713", "713", "ח. שינה", 3700, 6000, 4200, 7500),
+    room("L1:900", "900", "מסדרון", -3000, -200, 0, 7500),
+    room("L1:2082", "2082", "סלון", 0, 6000, 0, 4000), room("L1:2083", "2083", "ח. שינה", 0, 3500, 4200, 7500), room("L1:2084", "2084", "ח. שינה", 3700, 6000, 4200, 7500),
+  ];
+  const door = (id, x, y, facing) => ({ id, source: "Arch", level: "09", xyzMm: [x, y, z], widthMm: 900, alongWall: [1, 0], facing, wallThicknessMm: 200 });
+  const doors = [door(1, 1000, 4100, [0, 1]), door(2, 4800, 4100, [0, 1]), door(3, -100, 2000, [1, 0])];
+  doors[2].alongWall = [0, 1];
+  const snap = { schemaVersion: 2, exportedAt: "", revitVersion: "2025", document: { title: "t", path: "", isWorkshared: false, projectInfo: {} },
+    levels: [{ id: 1, name: "01", elevationMm: 4280 }, { id: 2, name: "02", elevationMm: 7580 }, { id: 3, name: "09", elevationMm: 29140 }], links: [], categoryCounts: {},
+    rooms, doors, furniture: [], windows: [], walls: [],
+    elements: [
+      { id: 1, category: "Fire Alarm Devices", builtInCategory: "OST_FireAlarmDevices", family: "Detector", type: "smoke", typeId: 1, xyzMm: [3000, 2000, z + 2700], hostCategory: "Ceilings", parameters: {} },
+      { id: 2, category: "Lighting Devices", builtInCategory: "OST_LightingDevices", family: "Switch", type: "1g", typeId: 1, xyzMm: [1700, 4250, z + 1100], parameters: {} },
+      { id: 3, category: "Electrical Fixtures", builtInCategory: "OST_ElectricalFixtures", family: "Socket", type: "16A", typeId: 1, xyzMm: [5000, 4250, z + 300], parameters: {} },
+      { id: 4, category: "Electrical Fixtures", builtInCategory: "OST_ElectricalFixtures", family: "Socket", type: "16A", typeId: 1, xyzMm: [5500, 4250, z + 300], parameters: {} },
+    ], raceways: [], panels: [], circuitsWithoutPanel: [], distributionSystems: [], warnings: [] };
+
+  assert.equal(dedupeRooms(rooms).length, 4, "duplicate rooms at the same spot collapse");
+  const groups = groupRoomsByDoors(snap, dedupeRooms(rooms), cfg);
+  assert.deepEqual(groups.map((g) => g.map((r) => r.number).sort()), [["711", "712", "713"]], "door-connected rooms form the apartment, corridor excluded");
+  const apts = listApartments(snap, cfg);
+  assert.equal(apts.length, 1); assert.equal(apts[0].rooms.length, 3);
+
+  const built = buildUnit(snap, { roomKeys: ["L1:711", "L1:712", "L1:713"] }, cfg);
+  assert.equal(built.levelName, "02", "host level comes from the doors' elevation, not the link level name");
+  assert.equal(built.unit.baseZ, 7580);
+  assert.ok(built.unit.parentOrder.length === 3);
+
+  const pattern = learn(built.unit, { ...learnOpts, anchorKindsByRole: { ...ANCHORS_BY_ROLE, fire: ["room"] } });
+  const byRole = (role) => pattern.rules.filter((r) => r.role === role);
+  assert.equal(byRole("switch")[0].parentOrdinal, 0, "switch belongs to the first bedroom");
+  assert.ok(byRole("socket").every((r) => r.parentOrdinal === 1), "sockets belong to the second bedroom");
+  // replicate onto itself: each bedroom gets only its own rules, the detector needs no wall
+  const placed = replicate(pattern, built.unit, hostingConstraints(cfg), { tryMirror: false });
+  const sum = summarize(placed);
+  assert.equal(sum.total, 4, `one placement per designed device, got ${JSON.stringify(sum)}`);
+  assert.equal(sum.byStatus.dropped ?? 0, 0, JSON.stringify(sum.dropped));
+  assert.equal(placed.filter((p) => p.parent === "L1:713" && p.role === "socket").length, 2);
+  assert.equal(placed.filter((p) => p.parent === "L1:712" && p.role === "socket").length, 0);
+});

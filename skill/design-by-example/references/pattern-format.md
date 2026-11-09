@@ -40,3 +40,8 @@ Sides: left/right (looking from the room at the anchor), handle/hinge for doors,
 `along` is signed mm along the wall; `height` is AFF. `host` is one of wall-behind-anchor, wall-of-door, wall-of-window, ceiling, floor, nearest-free-wall.
 
 Replication output `<snapshot>_REPLICATE.json`: per target apartment, per rule → `{ ruleId, point xyz mm, hostWallId, status: placed|moved|dropped, reason, checks: [...] }`, plus an HTML preview per level like `propose_electrical_design`.
+
+
+### parentOrdinal
+
+Each rule remembers which parent of its type it came from (`parentOrdinal`, 0 = first in the unit's `parentOrder`: rooms by type, largest first). On replication the rules of bedroom #1 go to the target's first bedroom, #2 to the second; a target with more bedrooms than the template reuses the last bedroom's rules, one with fewer drops the surplus rules with a reason.

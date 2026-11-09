@@ -3,7 +3,7 @@
 // into placements for place_electrical_element.
 import { ModelSnapshot, SnapshotRoom, SnapshotElement, SnapshotFurniture, SnapshotDoor, SnapshotWindow, SnapshotWall } from "../../../analysis/snapshot.js";
 import { pointInPolygon, Pt2 as P2 } from "../../../analysis/rules.js";
-import { Constraint, Designed, Feature, Placed, Pt2, Pt3, Unit, dot, leftOf, len, sub, unit as unitVec } from "../../core.js";
+import { Candidate, Constraint, Designed, Feature, Placed, Pt2, Pt3, Unit, dot, leftOf, len, sub, unit as unitVec } from "../../core.js";
 import { OfficeConfig, anchorKind, roomTypeId } from "./config.js";
 
 export interface UnitSelector {
@@ -57,18 +57,39 @@ export function roleOf(e: SnapshotElement): string {
 const p2 = (a: number[]): Pt2 => [a[0], a[1]];
 const p3 = (a: number[], z = 0): Pt3 => [a[0], a[1], a.length > 2 ? a[2] : z];
 
+/** Architect models sometimes hold the same room twice at one spot (design options, duplicate link instances): keep one. */
+export function dedupeRooms(rooms: SnapshotRoom[]): SnapshotRoom[] {
+  const kept: SnapshotRoom[] = [];
+  const centroid = (r: SnapshotRoom): Pt2 => r.centerMm ? p2(r.centerMm) : [r.boundaryMm!.reduce((s, p) => s + p[0], 0) / r.boundaryMm!.length, r.boundaryMm!.reduce((s, p) => s + p[1], 0) / r.boundaryMm!.length];
+  for (const r of rooms) {
+    const c = centroid(r);
+    const dup = kept.some((k) => Math.abs(k.areaM2 - r.areaM2) <= Math.max(0.3, 0.05 * r.areaM2) && len(sub(centroid(k), c)) < 300 && Math.abs((k.baseElevationMm ?? 0) - (r.baseElevationMm ?? 0)) < 1000);
+    if (!dup) kept.push(r);
+  }
+  return kept;
+}
+
+/** Rooms a door opens into: the model's room keys when they match, else the rooms just inside each face of its wall. */
+export function doorRooms(d: SnapshotDoor, rooms: SnapshotRoom[]): SnapshotRoom[] {
+  const dp = p2(d.xyzMm);
+  const off = (d.wallThicknessMm ?? 200) / 2 + 60;
+  const fx = d.facing?.[0] ?? 0, fy = d.facing?.[1] ?? 0;
+  const probes: Pt2[] = [dp, [dp[0] + fx * off, dp[1] + fy * off], [dp[0] - fx * off, dp[1] - fy * off]];
+  return rooms.filter((r) => d.fromRoomKey === r.key || d.toRoomKey === r.key || probes.some((q) => pointInPolygonLoose(q, r)));
+}
+
 function selectRooms(snap: ModelSnapshot, sel: UnitSelector): SnapshotRoom[] {
-  let rooms = snap.rooms.filter((r) => r.kind === "Room" && r.boundaryMm && r.boundaryMm.length >= 3);
+  let rooms = dedupeRooms(snap.rooms.filter((r) => r.kind === "Room" && r.boundaryMm && r.boundaryMm.length >= 3));
   if (sel.roomKeys?.length) rooms = rooms.filter((r) => sel.roomKeys!.includes(r.key));
   if (sel.roomFilter) { const f = sel.roomFilter.toLowerCase(); rooms = rooms.filter((r) => `${r.number} ${r.name} ${r.key}`.toLowerCase().includes(f)); }
   if (sel.levelName) { const f = sel.levelName.toLowerCase(); rooms = rooms.filter((r) => (r.level ?? "").toLowerCase().includes(f)); }
   return rooms;
 }
 
-interface WallSeg { a: Pt2; b: Pt2; dir: Pt2; inward: Pt2; length: number; thickness?: number; wallType?: string; wallId?: number }
+interface WallSeg { a: Pt2; b: Pt2; dir: Pt2; inward: Pt2; length: number; thickness?: number; wallType?: string; wallId?: number; backing?: { thickness?: number; wallType?: string } }
 
 /** Room boundary -> wall segments with the normal pointing into the room. */
-export function roomWalls(room: SnapshotRoom, walls: SnapshotWall[] = []): WallSeg[] {
+export function roomWalls(room: SnapshotRoom, walls: SnapshotWall[] = [], minThicknessMm = 70): WallSeg[] {
   const poly = room.boundaryMm!.map(p2);
   // signed area: positive = counter-clockwise, then the left of each edge is inside
   let area = 0;
@@ -93,7 +114,21 @@ export function roomWalls(room: SnapshotRoom, walls: SnapshotWall[] = []): WallS
       const d = Math.abs(dot(sub(mid, wa), leftOf(wd)));
       if (d <= (w.thicknessMm ?? 0) / 2 + 60 && (!best || d < best.d)) best = { w, d };
     }
-    if (best) { seg.thickness = best.w.thicknessMm; seg.wallType = best.w.type; seg.wallId = best.w.id; }
+    if (best) {
+      seg.thickness = best.w.thicknessMm; seg.wallType = best.w.type; seg.wallId = best.w.id;
+      // A thin finish layer (plaster, dry lining) in front of a real wall is a fine host: look for a backing wall behind it.
+      if ((best.w.thicknessMm ?? 0) < minThicknessMm) {
+        for (const w of walls) {
+          if (w === best.w || (w.thicknessMm ?? 0) < minThicknessMm) continue;
+          const wa = p2(w.startMm), wb = p2(w.endMm);
+          const wd = unitVec(sub(wb, wa));
+          if (Math.abs(dot(wd, dir)) < 0.97) continue;
+          const behind = -dot(sub([(wa[0] + wb[0]) / 2, (wa[1] + wb[1]) / 2], mid), inward); // distance outward from the room
+          const overlap = dot(sub(wa, mid), dir) < length / 2 && dot(sub(wb, mid), dir) > -length / 2 || dot(sub(wb, mid), dir) < length / 2 && dot(sub(wa, mid), dir) > -length / 2;
+          if (behind > 0 && behind < 400 && overlap) { seg.backing = { thickness: w.thicknessMm, wallType: w.type }; break; }
+        }
+      }
+    }
     segs.push(seg);
   }
   return segs;
@@ -121,17 +156,19 @@ export function buildUnit(snap: ModelSnapshot, sel: UnitSelector, cfg: OfficeCon
   const rooms = selectRooms(snap, sel);
   if (!rooms.length) throw new Error("No rooms with boundaries match the selector. Rooms need a closed boundary in the snapshot.");
   const warnings: string[] = [];
-  // Linked rooms carry the architect's level names ("09" for the host's "02"), so resolve the host level by elevation
-  // when the name is unknown: the nearest host level at or below the room base (within 1.5 m).
-  const roomBase = rooms[0].baseElevationMm;
-  let level = snap.levels.find((l) => l.name === rooms[0].level);
-  if (!level && roomBase !== undefined) {
-    const below = snap.levels.filter((l) => l.elevationMm <= roomBase + 500).sort((a, b) => b.elevationMm - a.elevationMm);
-    if (below.length && roomBase - below[0].elevationMm < 1500) level = below[0];
-  }
+  // Floor elevation. Linked rooms carry the architect's level names and elevations ("09" at 9140 where the host says
+  // "02" at 7580), so never trust the name: the floor is where the apartment's doors (and furniture) stand in host
+  // coordinates; the host level is the one nearest that elevation.
+  const median = (v: number[]) => { const a = [...v].sort((x, y) => x - y); return a.length ? a[Math.floor(a.length / 2)] : undefined; };
+  const doorZ = median(snap.doors.filter((d) => doorRooms(d, rooms).length).map((d) => d.xyzMm[2]));
+  const furnZ = median((snap.furniture ?? []).filter((f) => f.roomKey ? rooms.some((r) => r.key === f.roomKey) : roomOf(p2(f.xyzMm), rooms)).map((f) => f.bboxMinMm[2]));
+  const floorZ = doorZ ?? furnZ ?? rooms[0].baseElevationMm;
+  let level = floorZ === undefined ? undefined : [...snap.levels].sort((a, b) => Math.abs(a.elevationMm - floorZ) - Math.abs(b.elevationMm - floorZ))[0];
+  if (level && floorZ !== undefined && Math.abs(level.elevationMm - floorZ) > 1500) level = undefined;
+  if (!level) level = snap.levels.find((l) => l.name === rooms[0].level);
   const levelName = level?.name ?? rooms[0].level;
-  if (level && level.name !== rooms[0].level) warnings.push(`rooms carry level "${rooms[0].level}" (link); mapped to host level "${level.name}" by elevation`);
-  const baseZ = level?.elevationMm ?? roomBase ?? 0;
+  const baseZ = level?.elevationMm ?? floorZ ?? 0;
+  if (level && level.name !== rooms[0].level) warnings.push(`rooms carry level "${rooms[0].level}" (link); floor at ${Math.round(floorZ ?? baseZ)} mm → host level "${level.name}" (${level.elevationMm})`);
   const features: Feature[] = [];
   const parents: Record<string, string> = {};
   const roomTypes: Record<string, string> = {};
@@ -145,27 +182,22 @@ export function buildUnit(snap: ModelSnapshot, sel: UnitSelector, cfg: OfficeCon
     wallsByRoom.set(r.key, segs);
     const cx = r.centerMm ? r.centerMm[0] : r.boundaryMm!.reduce((s, p) => s + p[0], 0) / r.boundaryMm!.length;
     const cy = r.centerMm ? r.centerMm[1] : r.boundaryMm!.reduce((s, p) => s + p[1], 0) / r.boundaryMm!.length;
-    features.push({ id: `room:${r.key}`, kind: "room", parent: r.key, parentType: type, point: [cx, cy, baseZ], meta: { areaM2: r.areaM2, heightMm: r.heightMm } });
+    features.push({ id: `room:${r.key}`, kind: "room", parent: r.key, parentType: type, point: [cx, cy, baseZ], meta: { areaM2: r.areaM2, heightMm: r.heightMm, polygon: r.boundaryMm!.map(p2) } });
     segs.forEach((s, i) => {
       const tags: string[] = [];
-      const thin = s.thickness !== undefined && s.thickness < cfg.hosting.minWallThickness;
-      const nonClean = s.wallType && cfg.hosting.nonCleanWallKeywords.some((k) => s.wallType!.toLowerCase().includes(k.toLowerCase()));
-      if (thin || nonClean) tags.push("non-clean");
+      const isNonClean = (t?: string) => !!t && cfg.hosting.nonCleanWallKeywords.some((k) => t.toLowerCase().includes(k.toLowerCase()));
+      const thin = s.thickness !== undefined && s.thickness < cfg.hosting.minWallThickness && !(s.backing && !isNonClean(s.backing.wallType));
+      if (thin || isNonClean(s.wallType)) tags.push("non-clean");
+      if (s.backing) tags.push("finish-layer");
       features.push({ id: `wall:${r.key}:${i}`, kind: "wall", parent: r.key, parentType: type, point: [s.a[0], s.a[1], baseZ], dir: s.dir, normal: s.inward,
-        length: s.length, tags, meta: { thicknessMm: s.thickness, wallType: s.wallType, wallId: s.wallId } });
+        length: s.length, tags, meta: { thicknessMm: s.thickness, wallType: s.wallType, wallId: s.wallId, backingMm: s.backing?.thickness, backingType: s.backing?.wallType } });
     });
   }
 
   // doors: anchored on the wall they sit in, tagged with the handle side as seen from inside the room
   for (const d of snap.doors) {
     const dp = p2(d.xyzMm);
-    // The door point sits inside the wall, so also test a point just inside each face of the wall (room keys from the
-    // model are used when they match; linked doors often carry keys of another link instance).
-    const off = (d.wallThicknessMm ?? 200) / 2 + 60;
-    const fx = d.facing?.[0] ?? 0, fy = d.facing?.[1] ?? 0;
-    const probes: Pt2[] = [dp, [dp[0] + fx * off, dp[1] + fy * off], [dp[0] - fx * off, dp[1] - fy * off]];
-    for (const r of rooms) {
-      if (d.fromRoomKey !== r.key && d.toRoomKey !== r.key && !probes.some((q) => pointInPolygonLoose(q, r))) continue;
+    for (const r of doorRooms(d, rooms)) {
       const nw = nearestWall(dp, wallsByRoom.get(r.key)!);
       if (!nw || nw.dist > 400) continue;
       const seg = nw.seg;
@@ -226,12 +258,16 @@ export function buildUnit(snap: ModelSnapshot, sel: UnitSelector, cfg: OfficeCon
     const nw = nearestWall(ep, wallsByRoom.get(r.key)!);
     const onWall = nw && nw.dist <= 250;
     const host = e.hostCategory?.toLowerCase().includes("ceiling") || (!onWall && z - baseZ > 2000) ? "ceiling" : onWall ? "wall" : "level";
+    // The engineer put it inside a blocking footprint on purpose (appliance socket behind the counter / fridge): remember that.
+    const behindAppliance = features.some((f) => f.parent === r.key && f.tags?.includes("blocks-wall") && inFootprint([ep[0], ep[1], z], f));
     designed.push({ id: String(e.id), role: roleOf(e), parent: r.key, point: [ep[0], ep[1], z], host,
-      props: { category: e.category, builtInCategory: e.builtInCategory, familyName: e.family, typeName: e.type, typeId: e.typeId } });
+      props: { category: e.category, builtInCategory: e.builtInCategory, familyName: e.family, typeName: e.type, typeId: e.typeId, behindAppliance: behindAppliance || undefined } });
   }
+  // stable parent order: by type, then largest area first, then position
+  const parentOrder = [...rooms].sort((a, b) => roomTypes[a.key].localeCompare(roomTypes[b.key]) || b.areaM2 - a.areaM2 || (a.centerMm?.[0] ?? 0) - (b.centerMm?.[0] ?? 0) || (a.centerMm?.[1] ?? 0) - (b.centerMm?.[1] ?? 0)).map((r) => r.key);
 
   const unit: Unit = { id: sel.id ?? (sel.roomFilter || sel.levelName || rooms.map((r) => r.number).join(",")), type: rooms.length > 1 ? "apartment" : "room",
-    baseZ, origin: [0, 0], mirrored: sel.mirrored, features, designed, parents, meta: { levelName, roomCount: rooms.length } };
+    baseZ, origin: [0, 0], mirrored: sel.mirrored, features, designed, parents, parentOrder, meta: { levelName, roomCount: rooms.length, floorZ } };
   return { unit, rooms, roomTypes, levelName, warnings };
 }
 
@@ -257,39 +293,64 @@ function sameWall(c: Feature, f: Feature): boolean {
   return c.meta?.wallIndex !== undefined && f.meta?.wallIndex !== undefined && c.meta.wallIndex === f.meta.wallIndex;
 }
 
+/** True when a point lies within a blocking feature's plan footprint (± tolerance) and its blocking height range. */
+function inFootprint(p: Pt3, f: Feature): boolean {
+  if (!f.dir) return false;
+  const { along, across } = alongAcross([p[0], p[1]], f);
+  const [lo, hi] = interval(f);
+  const bmin = f.meta?.bboxMin as number[] | undefined, bmax = f.meta?.bboxMax as number[] | undefined;
+  const depth = bmin && bmax ? Math.min(Math.abs(bmax[0] - bmin[0]), Math.abs(bmax[1] - bmin[1])) : 600;
+  const inPlan = along >= lo - 50 && along <= hi + 50 && Math.abs(across) <= depth / 2 + 150;
+  const inHeight = !f.zRange || (p[2] >= f.zRange[0] - 50 && p[2] <= f.zRange[1] + 50);
+  return inPlan && inHeight;
+}
+
+function distToPolygon(p: Pt2, poly: Pt2[]): number {
+  let best = Infinity;
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i + 1) % poly.length];
+    const ab = sub(b, a), l = len(ab);
+    const t = l ? Math.max(0, Math.min(1, dot(sub(p, a), ab) / (l * l))) : 0;
+    best = Math.min(best, len(sub(p, [a[0] + ab[0] * t, a[1] + ab[1] * t])));
+  }
+  return best;
+}
+
 export function hostingConstraints(cfg: OfficeConfig, existing: Pt3[] = []): Constraint[] {
   const h = cfg.hosting;
-  const wallDevice = (role: string) => !["light", "emergency"].includes(role);
+  // Wall rules apply to wall-mounted devices only: ceiling and floor/level devices (detectors, luminaires) never need a wall.
+  const wallDevice = (c: Candidate) => c.host === "wall" || (c.host === undefined && !["light", "emergency", "fire"].includes(c.role));
   return [
+    // 0. inside the parent room (wall devices sit on its boundary, so allow a small margin)
+    (c, u) => {
+      const room = u.features.find((f) => f.kind === "room" && f.parent === c.parent);
+      const poly = room?.meta?.polygon as Pt2[] | undefined;
+      if (!poly || poly.length < 3) return { ok: true };
+      const p: Pt2 = [c.point[0], c.point[1]];
+      if (pointInPolygon(p as P2, poly as P2[]) || distToPolygon(p, poly) <= 150) return { ok: true };
+      return { ok: false, check: "room", reason: `outside room ${c.parent}` };
+    },
     // 1. non-clean host wall
     (c, u) => {
-      if (!wallDevice(c.role)) return { ok: true };
+      if (!wallDevice(c)) return { ok: true };
       const wall = hostWall(c, u);
       if (!wall) return { ok: false, check: "wall", reason: "no wall within 300 mm of the point" };
       if (wall.tags?.includes("non-clean")) return { ok: false, check: "wall", reason: `wall ${wall.id} is non-clean (${wall.meta?.wallType ?? "thin"})` };
       return { ok: true };
     },
-    // 2. behind furniture that blocks the wall, at that furniture's height range
+    // 2. behind furniture that blocks the wall, at that furniture's height range (unless the engineer meant it: appliance socket)
     (c, u) => {
-      if (!wallDevice(c.role)) return { ok: true };
-      const p: Pt2 = [c.point[0], c.point[1]];
+      if (!wallDevice(c)) return { ok: true };
       for (const f of u.features) {
         if (f.parent !== c.parent || !f.tags?.includes("blocks-wall") || !f.dir) continue;
-        if (c.feature.id === f.id && c.props?.behindAppliance) continue;
-        const { along, across } = alongAcross(p, f);
-        const [lo, hi] = interval(f);
-        const depth = (f.meta?.bboxMax as number[] | undefined) && (f.meta?.bboxMin as number[] | undefined)
-          ? Math.min(Math.abs((f.meta!.bboxMax as number[])[0] - (f.meta!.bboxMin as number[])[0]), Math.abs((f.meta!.bboxMax as number[])[1] - (f.meta!.bboxMin as number[])[1]))
-          : 600;
-        const inPlan = along >= lo - 50 && along <= hi + 50 && Math.abs(across) <= depth / 2 + 150;
-        const inHeight = !f.zRange || (c.point[2] >= f.zRange[0] - 50 && c.point[2] <= f.zRange[1] + 50);
-        if (inPlan && inHeight) return { ok: false, check: "behind-furniture", reason: `behind ${f.kind} ${f.id}` };
+        if (c.props?.behindAppliance && (c.feature.id === f.id || c.feature.kind === f.kind)) continue;
+        if (inFootprint(c.point, f)) return { ok: false, check: "behind-furniture", reason: `behind ${f.kind} ${f.id}` };
       }
       return { ok: true };
     },
     // 3. door frame / leaf and window openings
     (c, u) => {
-      if (!wallDevice(c.role)) return { ok: true };
+      if (!wallDevice(c)) return { ok: true };
       const p: Pt2 = [c.point[0], c.point[1]];
       const wall = hostWall(c, u);
       for (const f of u.features) {

@@ -1,6 +1,7 @@
 // Finding units (apartments) in a snapshot, grouping them into types, and detecting mirrored plans.
 import { ModelSnapshot, SnapshotRoom } from "../../../analysis/snapshot.js";
 import { OfficeConfig, roomTypeId } from "./config.js";
+import { dedupeRooms, doorRooms } from "./adapter.js";
 
 export interface ApartmentInfo {
   id: string;
@@ -29,13 +30,50 @@ export function apartmentIdOf(room: SnapshotRoom, pattern?: string): string {
   return `${room.level ?? ""}:${num || room.key}`;
 }
 
-export function listApartments(snap: ModelSnapshot, cfg: OfficeConfig, opts: { levelName?: string; apartmentPattern?: string; minRooms?: number } = {}): ApartmentInfo[] {
-  const minRooms = opts.minRooms ?? 2;
-  const rooms = snap.rooms.filter((r) => r.kind === "Room" && r.boundaryMm && r.boundaryMm.length >= 3 && (!opts.levelName || (r.level ?? "").toLowerCase().includes(opts.levelName.toLowerCase())));
+/** Room types that connect apartments to each other and never belong to one. */
+const PUBLIC_TYPES = new Set(["corridor", "circulation"]);
+
+/**
+ * Group rooms into apartments by the doors between them: rooms joined by a door are one apartment, public rooms
+ * (corridors, stairs, lobbies) are left out so the entrance door does not merge the floor. Works for any numbering.
+ */
+export function groupRoomsByDoors(snap: ModelSnapshot, rooms: SnapshotRoom[], cfg: OfficeConfig): SnapshotRoom[][] {
+  const privateRooms = rooms.filter((r) => !PUBLIC_TYPES.has(roomTypeId(r.name, cfg)));
+  const parent = new Map<string, string>(privateRooms.map((r) => [r.key, r.key]));
+  const find = (k: string): string => { let x = k; while (parent.get(x) !== x) x = parent.get(x)!; parent.set(k, x); return x; };
+  const union = (a: string, b: string) => { const ra = find(a), rb = find(b); if (ra !== rb) parent.set(ra, rb); };
+  for (const d of snap.doors) {
+    const rs = doorRooms(d, privateRooms);
+    for (let i = 1; i < rs.length; i++) union(rs[0].key, rs[i].key);
+  }
   const groups = new Map<string, SnapshotRoom[]>();
-  for (const r of rooms) {
-    const id = apartmentIdOf(r, opts.apartmentPattern);
-    groups.set(id, [...(groups.get(id) ?? []), r]);
+  for (const r of privateRooms) { const root = find(r.key); groups.set(root, [...(groups.get(root) ?? []), r]); }
+  return [...groups.values()];
+}
+
+/** Numbering like "03-01-3" or "0412" encodes the apartment; a plain running number ("686", "711") does not. */
+function numberingEncodesApartment(rooms: SnapshotRoom[]): boolean {
+  const nums = rooms.map((r) => (r.number ?? "").trim()).filter(Boolean);
+  if (!nums.length) return false;
+  const structured = nums.filter((n) => /[-_./ ]/.test(n) || /^\d{4}$/.test(n)).length;
+  return structured / nums.length > 0.8;
+}
+
+export function listApartments(snap: ModelSnapshot, cfg: OfficeConfig, opts: { levelName?: string; apartmentPattern?: string; minRooms?: number; groupBy?: "auto" | "numbers" | "doors" } = {}): ApartmentInfo[] {
+  const minRooms = opts.minRooms ?? 2;
+  const rooms = dedupeRooms(snap.rooms.filter((r) => r.kind === "Room" && r.boundaryMm && r.boundaryMm.length >= 3 && (!opts.levelName || (r.level ?? "").toLowerCase().includes(opts.levelName.toLowerCase()))));
+  const byNumbers = opts.groupBy === "numbers" || (opts.groupBy !== "doors" && (!!opts.apartmentPattern || numberingEncodesApartment(rooms)));
+  const groups = new Map<string, SnapshotRoom[]>();
+  if (byNumbers) {
+    for (const r of rooms) {
+      const id = apartmentIdOf(r, opts.apartmentPattern);
+      groups.set(id, [...(groups.get(id) ?? []), r]);
+    }
+  } else {
+    for (const g of groupRoomsByDoors(snap, rooms, cfg)) {
+      const nums = g.map((r) => r.number).filter(Boolean).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+      groups.set(`${g[0].level ?? ""}:${nums[0] ?? g[0].key}`, g);
+    }
   }
   const out: ApartmentInfo[] = [];
   for (const [id, rs] of groups) {

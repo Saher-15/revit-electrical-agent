@@ -50,6 +50,7 @@ export const DEFAULT_OFFICE_CONFIG: OfficeConfig = {
     { id: "mamad", keywords: ["ממ\"ד", "ממד", "מרחב מוגן", "protected", "shelter"] },
     { id: "laundry", keywords: ["כביסה", "שירות", "laundry", "utility"] },
     { id: "corridor", keywords: ["מסדרון", "פרוזדור", "hall", "corridor"] },
+    { id: "circulation", keywords: ["מדרגות", "stair", "מעלית", "elevator", "lift", "לובי", "lobby", "מבואה", "פיר", "shaft", "חדר אשפה", "garbage"] },
     { id: "balcony", keywords: ["מרפסת", "balcony", "terrace"] },
     { id: "storage", keywords: ["מחסן", "storage"] },
     { id: "meeting", keywords: ["חדר ישיבות", "meeting"] },

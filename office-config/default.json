@@ -41,6 +41,7 @@
     { "id": "mamad", "keywords": ["ממ\"ד", "ממד", "מרחב מוגן", "protected", "shelter"], "lux": 150 },
     { "id": "laundry", "keywords": ["כביסה", "שירות", "laundry", "utility"], "lux": 150 },
     { "id": "corridor", "keywords": ["מסדרון", "פרוזדור", "hall", "corridor"], "lux": 100 },
+    { "id": "circulation", "keywords": ["מדרגות", "stair", "מעלית", "elevator", "lift", "לובי", "lobby", "מבואה", "פיר", "shaft", "חדר אשפה", "garbage"], "lux": 100 },
     { "id": "balcony", "keywords": ["מרפסת", "balcony", "terrace"], "lux": 50 },
     { "id": "storage", "keywords": ["מחסן", "storage"], "lux": 100 },
     { "id": "meeting", "keywords": ["חדר ישיבות", "meeting"], "lux": 500 },

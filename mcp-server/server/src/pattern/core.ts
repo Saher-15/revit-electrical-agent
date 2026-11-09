@@ -58,6 +58,8 @@ export interface Unit {
   designed: Designed[];
   /** Parent id -> parent type (room key -> room type). */
   parents: Record<string, string>;
+  /** Parent ids in a stable order (e.g. rooms by area, largest first); rules remember which parent of a type they came from. */
+  parentOrder?: string[];
   meta?: Record<string, unknown>;
 }
 
@@ -68,6 +70,8 @@ export interface Rule {
   anchorKind: string;
   /** Which feature of that kind in the parent: 0 = first by along-order. */
   ordinal: number;
+  /** Which parent of parentType the rule came from (0 = first in parentOrder); a target with more parents reuses the last. */
+  parentOrdinal?: number;
   /** Tags the anchor must carry (e.g. ["handle:right"]). */
   anchorTags?: string[];
   along: number;
@@ -190,6 +194,11 @@ export function learn(template: Unit, opts: LearnOptions = {}): Pattern {
   const notes: string[] = [];
   const counter = new Map<string, number>();
 
+  const parentOrdinalOf = (parent: string): number => {
+    const type = template.parents[parent];
+    const order = (template.parentOrder ?? Object.keys(template.parents)).filter((k) => template.parents[k] === type);
+    return Math.max(0, order.indexOf(parent));
+  };
   for (const d of template.designed) {
     const parentType = template.parents[d.parent];
     if (!parentType) { notes.push(`${d.id}: parent ${d.parent} has no type, skipped`); continue; }
@@ -222,6 +231,7 @@ export function learn(template: Unit, opts: LearnOptions = {}): Pattern {
       parentType,
       anchorKind: f.kind,
       ordinal: Math.max(0, ordinal),
+      parentOrdinal: parentOrdinalOf(d.parent),
       anchorTags: anchorTags.length ? anchorTags : undefined,
       along: Math.round(along),
       across: Math.round(across),
@@ -266,8 +276,25 @@ export function replicate(pattern: Pattern, target: Unit, constraints: Constrain
   const out: Placed[] = [];
   const sign = target.mirrored ? -1 : 1;
 
+  // Each rule goes to the target parent with the same ordinal among parents of its type (bedroom #1 rules to the first
+  // bedroom, #2 to the second). A target with more parents of a type than the template reuses the last template parent's
+  // rules; one with fewer drops the surplus rules. Rules without parentOrdinal (older patterns) go to every parent.
+  const order = target.parentOrder ?? Object.keys(target.parents);
+  const parentsOfType = (type: string) => order.filter((k) => target.parents[k] === type);
+  const templateCount = new Map<string, number>();
+  for (const r of pattern.rules) templateCount.set(r.parentType, Math.max(templateCount.get(r.parentType) ?? 0, (r.parentOrdinal ?? 0) + 1));
+
   for (const rule of pattern.rules) {
-    const parents = Object.entries(target.parents).filter(([, t]) => t === rule.parentType).map(([k]) => k);
+    const all = parentsOfType(rule.parentType);
+    let parents: string[];
+    if (rule.parentOrdinal === undefined) parents = all;
+    else {
+      const n = templateCount.get(rule.parentType) ?? 1;
+      parents = all.filter((_, j) => (j < n ? j : n - 1) === rule.parentOrdinal);
+      if (!parents.length && all.length <= rule.parentOrdinal)
+        out.push({ ruleId: rule.id, role: rule.role, parent: "-", parentType: rule.parentType, anchor: rule.anchorKind, status: "dropped",
+          reason: `target has ${all.length} ${rule.parentType}(s), rule is for #${rule.parentOrdinal + 1}`, checks: [] });
+    }
     for (const parent of parents) {
       const { f, anchorKind } = pickFeature(target, parent, rule, fallbackKinds);
       if (!f) {
