@@ -338,3 +338,24 @@ test("real-model lessons: link levels by door elevation, duplicate rooms, door g
   assert.equal(placed.filter((p) => p.parent === "L1:713" && p.role === "socket").length, 2);
   assert.equal(placed.filter((p) => p.parent === "L1:712" && p.role === "socket").length, 0);
 });
+
+test("wall devices inside the wall thickness (outside every room polygon) are assigned to the room they face and learned", () => {
+  const snap = snapshot(true);
+  // a shutter feed 100 mm outside the bedroom's south wall line (inside the 200 mm wall), no roomKey from Revit
+  snap.elements.push({ id: 8, category: "Electrical Fixtures", builtInCategory: "OST_ElectricalFixtures", family: "TPZ Shutter", type: "feed", typeId: 1, xyzMm: [2500, -100, 2200], parameters: {} });
+  // and one 1 m away from any room: ignored
+  snap.elements.push({ id: 9, category: "Electrical Fixtures", builtInCategory: "OST_ElectricalFixtures", family: "TPZ Socket Double", type: "16A", typeId: 1, xyzMm: [2500, -1000, 300], parameters: {} });
+  const t = buildUnit(snap, { roomFilter: "03-" }, cfg);
+  const shutter = t.unit.designed.find((d) => d.id === "8");
+  assert.ok(shutter, "in-wall device is kept");
+  assert.equal(shutter.parent, "03-MBR");
+  assert.equal(shutter.host, "wall");
+  assert.ok(!t.unit.designed.find((d) => d.id === "9"), "a device far from every room is not assigned");
+  const pattern = learn(t.unit, learnOpts);
+  assert.ok(pattern.rules.some((r) => r.designedId === "8" || r.source?.designedId === "8" || JSON.stringify(r).includes('"8"')), "rule learned for the in-wall device");
+  const target = buildUnit(snap, { roomFilter: "04-" }, cfg);
+  const placed = replicate(pattern, target.unit, hostingConstraints(cfg), {});
+  const twin = placed.filter((p) => p.status !== "dropped" && p.role === shutter.role && Math.abs(p.point[0] - 22500) < 1);
+  assert.equal(twin.length, 1, "replicated once in the twin bedroom");
+  assert.ok(Math.abs(twin[0].point[1] - -100) < 1, "at the same in-wall offset (the target wall line)");
+});

@@ -53,6 +53,9 @@ Acceptance
 3. Installer: one `install.ps1` (add-in + server + skill + office.json template), version stamp, `releases/` zips per Revit year.
 4. ☑ CI: GitHub Actions (`.github/workflows/ci.yml`) runs `npm test`, the Revit 2025/2026 compile check and `dotnet test` on every push.
 5. Workshop kit (`docs/workshop/`): slides outline, sample model, exercises.
+6. Placement hygiene from the 2026-11-10 floor-03 run (`skill/.../references/session-rules.md`): `apply_electrical_design` applies `office.json > placement` (instance params per family, workset per category, provenance Comments, 4–5 points per transaction + view refresh, active-document guard); `set_workset` / `color_elements` by provenance; `zoom_to` for the engineer's view.
+7. Rule extraction: at session end, list the rules the conversation produced, propose them to the engineer, and on approval write them to office.json / session-rules.md / project RULES.md.
+8. Review loop (`skill/.../references/review-loop.md`): engineer + designer comments → fix all units built from the rule → rule update → lessons-log; metrics acceptance ≥ 95 %, completeness ≤ 5 %, reported per review.
 
 Acceptance: a new PC goes from zero to "Open Claude" in 30 minutes using only the README.
 
