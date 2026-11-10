@@ -16,6 +16,7 @@ Built on a fork of [mcp-servers-for-revit](https://github.com/mcp-servers-for-re
 | `office-config/` | Per-office settings template (`default.json`) and how to fill it. |
 | `docs/adapters.md` | How to write a new domain adapter. |
 | `docs/revit-cli.md` | Revit from the command line (pyRevit CLI): install, version detection, batch runs. |
+| `docs/deployment.md` | Rolling the add-in and Claude Code out to every workstation in an office: data path, licensing, silent install, updates, permissions, pilot. |
 
 ## The workflow (Revit rooms adapter)
 
