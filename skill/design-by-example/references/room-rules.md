@@ -24,3 +24,9 @@ Electrical panel: one per apartment, entrance hall/corridor, 1800 mm to top, not
 - **Toilet / laundry**: washing machine **and** dryer sockets at 600 mm beside the stacked appliances, a basin socket at 1100 mm, and a socket above the door at 2300 mm.
 - The hosting checks treat the wall above a door head (> 2150 mm) as solid, and the wet zones end at 2250 mm, so these points are not dropped or moved.
 - When the engineer's template places these points, copy them exactly; never relocate them on your own.
+
+## Engineer review defaults (2026-11-10, master bedroom + en-suite)
+- Shutter switch above the nightstand: one side only, the side nearer the room door.
+- Single-phase water-protected isolator for the boiler: next to the boiler in the service balcony, not in the bathroom.
+- One electric-boiler switch per apartment, next to the general toilet; none at the bedroom door.
+- Light switch heights: single and 2-way 1200 mm; the 2-way above the nightstand 600 mm.
