@@ -25,6 +25,15 @@ export interface OfficeConfig {
   roomTypes: RoomTypeCfg[];
   anchors: AnchorCfg[];
   scheduleLevel: { always: boolean; parameter: string };
+  /** How placements are written to the model (office.json "placement"); all optional. */
+  placement?: PlacementCfg;
+}
+
+export interface PlacementCfg {
+  /** Instance parameters forced on every placed family whose name contains familyMatch (case-insensitive), e.g. WP families' "Symbol offset" = 0. */
+  instanceParams?: { familyMatch: string; set: Record<string, string | number> }[];
+  /** Category name -> user workset name. */
+  worksets?: Record<string, string>;
 }
 
 export const DEFAULT_OFFICE_CONFIG: OfficeConfig = {

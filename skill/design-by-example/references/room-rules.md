@@ -18,3 +18,9 @@ Heights are mm above finished floor, centre of device. Override in office config
 | storage | Light + switch; 1 socket at 300. |
 
 Electrical panel: one per apartment, entrance hall/corridor, 1800 mm to top, not opposite a door swing. Bell push outside at 1400, chime inside.
+
+## Engineer review defaults (2026-11-10, residential bathrooms)
+- **Bathroom**: heater socket ("תנור חימום") at 2300 mm **above the bathroom door**, centred over the opening on the inside face; a basin socket ("שירות - כיור") at 1100 mm beside the basin.
+- **Toilet / laundry**: washing machine **and** dryer sockets at 600 mm beside the stacked appliances, a basin socket at 1100 mm, and a socket above the door at 2300 mm.
+- The hosting checks treat the wall above a door head (> 2150 mm) as solid, and the wet zones end at 2250 mm, so these points are not dropped or moved.
+- When the engineer's template places these points, copy them exactly; never relocate them on your own.

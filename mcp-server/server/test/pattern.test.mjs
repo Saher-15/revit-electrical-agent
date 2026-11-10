@@ -171,6 +171,21 @@ test("hosting checks: behind counter at 300 mm fails, above it passes; door fram
   assert.equal(run("switch", [100, 2200, 1100], "03-MBR").ok, true);
   assert.equal(run("socket", [3950, 3000, 300], "03-MBR").check, "wall"); // east wall is glass
   assert.equal(run("light", [3950, 3000, 2700], "03-MBR").ok, true); // ceiling devices do not care about walls
+  assert.notEqual(run("socket", [50, 2600, 2300], "03-MBR").check, "opening"); // heater socket above the door head is fine (review 2026-11-10)
+});
+
+test("placement config: forced instance params by family, workset by category, provenance appended", async () => {
+  const { applyPlacementConfig } = await import("../build/pattern/adapters/revit-rooms/placement.js");
+  const cfgP = { instanceParams: [{ familyMatch: "wp", set: { "Symbol offset": 0 } }], worksets: { "Lighting Fixtures": "EL_040_Lighting" } };
+  const a = applyPlacementConfig({ familyName: "Tpz_3D_EF_Socket 1-ph Under Plaster WP", category: "Electrical Fixtures", parameters: { Comments: "מקרר" } }, cfgP, "Claude: derived from 02");
+  assert.deepEqual(a.parameters, { Comments: "מקרר", "Symbol offset": "0" });
+  assert.deepEqual(a.appendParameters, { Comments: "Claude: derived from 02" });
+  assert.equal(a.workset, undefined);
+  const b = applyPlacementConfig({ familyName: "Tpz_3D_LF_ Lighting Pointes", category: "Lighting Fixtures", parameters: { "Symbol offset": "5" } }, cfgP);
+  assert.equal(b.workset, "EL_040_Lighting");
+  assert.equal(b.appendParameters, undefined);
+  const c = applyPlacementConfig({ familyName: "X WP", category: "Electrical Fixtures", parameters: { "Symbol offset": "5" } }, cfgP);
+  assert.equal(c.parameters["Symbol offset"], "5"); // explicit value on the placement wins
 });
 
 test("linear adapter: poles learned on one station continue along the whole alignment", () => {
