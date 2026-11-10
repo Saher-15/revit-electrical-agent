@@ -232,7 +232,7 @@ namespace revit_mcp_plugin.Chat
             _session.ToolFinished += (id, err, result) => Ui(() => FinishTool(id, err, result));
             _session.TurnCompleted += (err, ms, text) => Ui(() => OnTurnCompleted(err, ms, text));
             _session.Initialized += (model, servers) => Ui(() => OnInitialized(model, servers));
-            _session.Error += msg => Ui(() => AddError(msg));
+            _session.Error += msg => Ui(() => AddError(msg + AuthHint(msg)));
             _session.BusyChanged += busy => Ui(() => OnBusyChanged(busy));
 
             _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(450) };
@@ -334,7 +334,7 @@ namespace revit_mcp_plugin.Chat
             bool queued = ChatPane.RequestStartServer(ok => Ui(() =>
             {
                 UpdateRevitStatus();
-                if (showResult && !ok) AddError("לא הצלחתי להפעיל את שרת ה-MCP של Revit (פורט 8080). אולי מופע Revit אחר כבר משתמש בו?");
+                if (showResult && !ok) AddError("לא הצלחתי להפעיל את שרת ה-MCP של Revit. אולי מופע Revit אחר כבר משתמש בו?");
             }));
             if (!queued && showResult)
                 AddNote("לחץ על Add-Ins ‹ Claude Chat כדי להפעיל את החיבור ל-Revit.");
@@ -378,7 +378,7 @@ namespace revit_mcp_plugin.Chat
             EndAnswer();
             foreach (var chip in _tools.Values.Where(c => c.Pending)) chip.Finish(false, "");
             if (isError)
-                AddError(string.IsNullOrWhiteSpace(text) ? "Claude החזיר שגיאה." : text);
+                AddError((string.IsNullOrWhiteSpace(text) ? "Claude החזיר שגיאה." : text) + AuthHint(text));
             else if (ms > 0)
                 AddMeta(FormatDuration(ms));
             ScrollToEnd(force: false);
@@ -569,6 +569,15 @@ namespace revit_mcp_plugin.Chat
         {
             double s = ms / 1000.0;
             return s < 60 ? s.ToString("0.0") + " שנ׳" : ((int)(s / 60)) + " דק׳ " + ((int)(s % 60)) + " שנ׳";
+        }
+
+        private static string AuthHint(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return "";
+            string t = text.ToLowerInvariant();
+            if (t.Contains("authenticat") || t.Contains("oauth") || t.Contains("/login") || t.Contains("not logged in"))
+                return "\n\nClaude Code לא מחובר במחשב הזה. פתח PowerShell והרץ: claude auth login  (או claude ואז /login), אשר בדפדפן ושלח שוב.";
+            return "";
         }
 
         private bool IsAtBottom() => _scroll.VerticalOffset >= _scroll.ScrollableHeight - 60;
