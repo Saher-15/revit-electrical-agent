@@ -37,6 +37,8 @@ powershell -ExecutionPolicy Bypass -File .\install-electrical.ps1 -RevitYear 202
 In Revit: Add-Ins > Revit MCP > Settings > Select All, untick `send_code_to_revit`, Save. Add-Ins > Revit MCP > **Open Claude**.
 Copy `skill/design-by-example` to `%USERPROFILE%\.claude\skills\` and `office-config/default.json` to `Documents\RevitClaude\office.json`.
 
+**After every rebuild** (`npm run build` in `mcp-server/server`, or a merge that changes it): a running MCP server keeps the build it loaded at start, so restart the Claude session (and the Revit chat pane) before using the tools. Otherwise they run the old code without error.
+
 ## Tests
 
 ```powershell
