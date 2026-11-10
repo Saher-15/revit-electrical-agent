@@ -1,0 +1,8 @@
+# Lessons log (append-only, dated)
+
+Raw material for the rules. One line per lesson: date, model/context, what, where it went.
+
+- 2026-11-08 KYM bldg 5 floor 03 (first own design): wall-hosted symbols drew far outside the plan → placement reference direction fixed (commit 3ce8dfa). Avir's design has 2-way switches and electric shutters Claude's own design lacked → room-rules defaults.
+- 2026-11-09 KYM bldg 5: architect link rooms carry the architect's level names → map by elevation; architect link appears twice (bldg 5 and 7) → dedupe rooms/doors; nested families duplicate furniture → dedupe; "ח. שינה" spelling → room keywords; apartments detected by door connectivity, not room numbers; open kitchen attached by shared boundary.
+- 2026-11-10 KYM bldg 5 floor 03 (full floor, 6 apartments + public areas): WP families default `Symbol offset` 47/74 via API, engineer's = 0, buttons `Tpz_Symbol 1-100/1-200 = No` → placement.instanceParams; API elements fall into EL_010_Equipment → placement.worksets; 10-point batches look frozen → 4–5 per transaction + refresh; creating a view can switch the active document → active-document guard; engineer cannot find "apartment A" → Comments carry apt + architect room number, send an apartment map first; hosting rejects (washer socket 344 mm from bath, sockets in door frame, switch in window, emergency light at −350 with no host) → own-design re-placement.
+- 2026-11-10 environment: SQL LocalDB SteelConnections crash-loop on NVMe (>4 KB sector) hangs every Revit open with the structural link → stornvme ForcedPhysicalSectorSizeInBytes fix + Windows restart; Revit 2026 cannot open a 2025 cloud model without an ACC upgrade.
