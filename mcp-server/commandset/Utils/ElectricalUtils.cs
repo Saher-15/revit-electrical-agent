@@ -129,10 +129,20 @@ namespace RevitMCPCommandSet.Utils
         }
 
         /// <summary>Set a parameter from text, converting lengths from mm when the parameter is a length.</summary>
+        /// <summary>LookupParameter, then a case-insensitive match (families spell "Symbol offset" / "symbol offset").</summary>
+        public static Parameter LookupParameterIgnoreCase(Element element, string name)
+        {
+            var p = element.LookupParameter(name);
+            if (p != null) return p;
+            foreach (Parameter q in element.Parameters)
+                if (string.Equals(q.Definition?.Name, name, StringComparison.OrdinalIgnoreCase)) return q;
+            return null;
+        }
+
         public static bool TrySetParameter(Element element, string name, string value, out string error)
         {
             error = null;
-            Parameter p = element.LookupParameter(name);
+            Parameter p = LookupParameterIgnoreCase(element, name);
             if (p == null)
             {
                 error = $"Parameter '{name}' not found on element {element.Id.GetValue()}.";

@@ -1,4 +1,4 @@
-using Autodesk.Revit.DB;
+﻿using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
 using RevitMCPCommandSet.Models.Common;
 using RevitMCPCommandSet.Models.Electrical;
@@ -152,10 +152,39 @@ namespace RevitMCPCommandSet.Services.Electrical
                 }
             }
 
+            if (item.AppendParameters != null)
+            {
+                foreach (var kv in item.AppendParameters)
+                {
+                    if (string.IsNullOrWhiteSpace(kv.Value)) continue;
+                    var p = ElectricalUtils.LookupParameterIgnoreCase(instance, kv.Key);
+                    string current = p?.AsString() ?? "";
+                    string value = string.IsNullOrWhiteSpace(current) ? kv.Value
+                                 : current.Contains(kv.Value) ? current : current + " | " + kv.Value;
+                    if (!ElectricalUtils.TrySetParameter(instance, kv.Key, value, out string perr))
+                        Warnings.Add($"{item.Name}: {perr}");
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(item.Workset)) SetWorkset(instance, item);
+
             SetScheduleLevel(instance, item, level, r);
 
             r.ElementId = instance.Id.GetValue();
             r.HostElementId = instance.Host?.Id.GetValue() ?? -1;
+        }
+
+        /// <summary>Moves the new element to the named user workset; a missing workset is a warning, not a failure.</summary>
+        private void SetWorkset(FamilyInstance instance, ElectricalPlacementInfo item)
+        {
+            if (!Doc.IsWorkshared) return;
+            var ws = new FilteredWorksetCollector(Doc).OfKind(WorksetKind.UserWorkset)
+                .FirstOrDefault(w => string.Equals(w.Name, item.Workset.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (ws == null) { Warnings.Add($"{item.Name}: workset '{item.Workset}' not found."); return; }
+            var p = instance.get_Parameter(BuiltInParameter.ELEM_PARTITION_PARAM);
+            if (p == null || p.IsReadOnly) { Warnings.Add($"{item.Name}: workset cannot be changed."); return; }
+            try { p.Set(ws.Id.IntegerValue); }
+            catch (Exception ex) { Warnings.Add($"{item.Name}: workset not set ({ex.Message})."); }
         }
 
         /// <summary>Schedule Level = the requested level (or the resolved one), so elements hosted on linked faces still schedule per floor.</summary>

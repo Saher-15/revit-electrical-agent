@@ -18,3 +18,30 @@ Heights are mm above finished floor, centre of device. Override in office config
 | storage | Light + switch; 1 socket at 300. |
 
 Electrical panel: one per apartment, entrance hall/corridor, 1800 mm to top, not opposite a door swing. Bell push outside at 1400, chime inside.
+
+## Engineer review defaults (2026-11-10, residential bathrooms)
+- **Bathroom**: heater socket ("תנור חימום") at 2300 mm **above the bathroom door**, centred over the opening on the inside face; a basin socket ("שירות - כיור") at 1100 mm beside the basin.
+- **Toilet / laundry**: washing machine **and** dryer sockets at 600 mm beside the stacked appliances, a basin socket at 1100 mm, and a socket above the door at 2300 mm.
+- The hosting checks treat the wall above a door head (> 2150 mm) as solid, and the wet zones end at 2250 mm, so these points are not dropped or moved.
+- When the engineer's template places these points, copy them exactly; never relocate them on your own.
+
+## Engineer review defaults (2026-11-10, master bedroom + en-suite)
+- Shutter switch above the nightstand: one side only, the side nearer the room door.
+- Single-phase water-protected isolator for the boiler: next to the boiler in the service balcony, not in the bathroom.
+- One electric-boiler switch per apartment, next to the general toilet; none at the bedroom door.
+- Light switch heights: single and 2-way 1200 mm; the 2-way above the nightstand 600 mm.
+
+## Mounting heights (engineer's rules 2026-11-10, finished floor to device axis)
+| Device | Height (cm) |
+|---|---|
+| Ceiling devices (lights, emergency, detectors, speakers, presence) | flush to ceiling (lowered ceiling where present) |
+| Single switch, light button, backlight switch, bell push | 120 |
+| 2-way switch | 120; above the nightstand / under the window beside the bed 60 |
+| Shutter 3-mode switch | 120; above the nightstand 60 |
+| Boiler switch, water-protected isolators (1-ph, 3-ph) | 150 |
+| Shutter feed | 260 |
+| TV outlet | 170 |
+| Workstation box | 40 |
+| Sockets by purpose | bedroom 80, nightstand 60, desk 60, living 80, TV 170, fridge 130, hood filter 220, AC 240, basin 110, kitchen counter 110, heater above door 230, washer/dryer 60, oven/cooktop/dishwasher 60, balcony 110 |
+| Other | AC feed 250, data/phone 60 (beside TV 170), intercom 120 (no screen 80), door bell 240, apartment panel 140 |
+Learned template heights are overridden by this table.
