@@ -24,15 +24,6 @@ export interface OfficeConfig {
     /** A wall device's location point sits inside the wall thickness, outside every room polygon: assign it to the nearest room within this distance. */
     wallAssignMaxMm: number;
   };
-  /** Placement hygiene (batching, instance parameters per family, worksets, provenance). Read by apply_electrical_design. */
-  placement?: {
-    batchSize?: number;
-    refreshViewAfterCommit?: boolean;
-    requireActiveDocumentMatch?: boolean;
-    provenance?: { parameter: string; derived: string; own: string; colors?: Record<string, number[]> };
-    instanceParams?: { familyMatch: string; set: Record<string, string | number> }[];
-    worksets?: Record<string, string>;
-  };
   roomTypes: RoomTypeCfg[];
   anchors: AnchorCfg[];
   scheduleLevel: { always: boolean; parameter: string };
@@ -41,6 +32,12 @@ export interface OfficeConfig {
 }
 
 export interface PlacementCfg {
+  /** Elements per place request; Revit times out above ~5. */
+  batchSize?: number;
+  refreshViewAfterCommit?: boolean;
+  requireActiveDocumentMatch?: boolean;
+  /** Provenance written to a parameter (default Comments) with per-kind colours. */
+  provenance?: { parameter: string; derived: string; own: string; colors?: Record<string, number[]> };
   /** Instance parameters forced on every placed family whose name contains familyMatch (case-insensitive), e.g. WP families' "Symbol offset" = 0. */
   instanceParams?: { familyMatch: string; set: Record<string, string | number> }[];
   /** Category name -> user workset name. */
