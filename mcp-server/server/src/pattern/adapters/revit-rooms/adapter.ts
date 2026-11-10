@@ -183,6 +183,16 @@ function roomOf(p: Pt2, rooms: SnapshotRoom[]): SnapshotRoom | undefined {
   return rooms.find((r) => pointInPolygon(p as P2, r.boundaryMm!.map(p2) as P2[]));
 }
 
+/** Nearest room whose boundary is within maxMm of the point (a device inside a wall belongs to the room it faces). */
+function nearestRoom(p: Pt2, rooms: SnapshotRoom[], maxMm: number): SnapshotRoom | undefined {
+  let best: { r: SnapshotRoom; d: number } | undefined;
+  for (const r of rooms) {
+    const d = distToPolygon(p, r.boundaryMm!.map(p2));
+    if (d <= maxMm && (!best || d < best.d)) best = { r, d };
+  }
+  return best?.r;
+}
+
 export interface BuiltUnit { unit: Unit; rooms: SnapshotRoom[]; roomTypes: Record<string, string>; levelName?: string; warnings: string[] }
 
 /** Build one unit (apartment or room) from a snapshot. */
@@ -283,20 +293,29 @@ export function buildUnit(snap: ModelSnapshot, sel: UnitSelector, cfg: OfficeCon
 
   // the engineer's devices
   const designed: Designed[] = [];
+  let belowFloor = 0;
   for (const e of snap.elements) {
     if (!e.xyzMm) continue;
     const ep = p2(e.xyzMm);
-    const r = (e.roomKey && rooms.find((x) => x.key === e.roomKey)) || roomOf(ep, rooms);
+    // Wall devices sit inside the wall thickness, outside every room polygon (KYM floor 02: 341 of 655 points). Fall back
+    // to the nearest room within a wall thickness; Revit puts the location point on the host face, so the nearest wins.
+    let inWall = false;
+    let r = (e.roomKey && rooms.find((x) => x.key === e.roomKey)) || roomOf(ep, rooms);
+    if (!r) { r = nearestRoom(ep, rooms, cfg.hosting.wallAssignMaxMm ?? 400); inWall = !!r; }
     if (!r) continue;
     const z = e.xyzMm[2];
+    // Below this unit's floor: the device belongs to another floor (seen on real models at -350 / -5000); learning it would copy it into the wrong floor.
+    if (z < baseZ - 50) { belowFloor++; continue; }
     const nw = nearestWall(ep, wallsByRoom.get(r.key)!);
-    const onWall = nw && nw.dist <= 250;
+    const onWall = inWall || (nw && nw.dist <= 250);
     const host = e.hostCategory?.toLowerCase().includes("ceiling") || (!onWall && z - baseZ > 2000) ? "ceiling" : onWall ? "wall" : "level";
     // The engineer put it inside a blocking footprint on purpose (appliance socket behind the counter / fridge): remember that.
     const behindAppliance = features.some((f) => f.parent === r.key && f.tags?.includes("blocks-wall") && inFootprint([ep[0], ep[1], z], f));
     designed.push({ id: String(e.id), role: roleOf(e), parent: r.key, point: [ep[0], ep[1], z], host,
-      props: { category: e.category, builtInCategory: e.builtInCategory, familyName: e.family, typeName: e.type, typeId: e.typeId, behindAppliance: behindAppliance || undefined } });
+      props: { category: e.category, builtInCategory: e.builtInCategory, familyName: e.family, typeName: e.type, typeId: e.typeId, behindAppliance: behindAppliance || undefined,
+        comments: e.parameters?.Comments?.trim() || undefined } });
   }
+  if (belowFloor) warnings.push(`${belowFloor} designed device(s) below the unit floor were ignored (they belong to another floor)`);
   // stable parent order: by type, then largest area first, then position
   const parentOrder = [...rooms].sort((a, b) => roomTypes[a.key].localeCompare(roomTypes[b.key]) || b.areaM2 - a.areaM2 || (a.centerMm?.[0] ?? 0) - (b.centerMm?.[0] ?? 0) || (a.centerMm?.[1] ?? 0) - (b.centerMm?.[1] ?? 0)).map((r) => r.key);
 
@@ -350,6 +369,11 @@ function distToPolygon(p: Pt2, poly: Pt2[]): number {
   return best;
 }
 
+/** Door head + a little: devices above it are on solid wall (a socket over the door). */
+const DOOR_HEAD_MM = 2150;
+/** Top of the bathroom wet zones (IEC 60364-7-701). */
+const WET_ZONE_TOP_MM = 2250;
+
 export function hostingConstraints(cfg: OfficeConfig, existing: Pt3[] = []): Constraint[] {
   const h = cfg.hosting;
   // Wall rules apply to wall-mounted devices only: ceiling and floor/level devices (detectors, luminaires) never need a wall.
@@ -361,7 +385,7 @@ export function hostingConstraints(cfg: OfficeConfig, existing: Pt3[] = []): Con
       const poly = room?.meta?.polygon as Pt2[] | undefined;
       if (!poly || poly.length < 3) return { ok: true };
       const p: Pt2 = [c.point[0], c.point[1]];
-      if (pointInPolygon(p as P2, poly as P2[]) || distToPolygon(p, poly) <= 150) return { ok: true };
+      if (pointInPolygon(p as P2, poly as P2[]) || distToPolygon(p, poly) <= Math.max(150, h.wallAssignMaxMm ?? 400)) return { ok: true };
       return { ok: false, check: "room", reason: `outside room ${c.parent}` };
     },
     // 1. non-clean host wall
@@ -389,6 +413,8 @@ export function hostingConstraints(cfg: OfficeConfig, existing: Pt3[] = []): Con
       const wall = hostWall(c, u);
       for (const f of u.features) {
         if (f.parent !== c.parent || !f.tags?.includes("opening") || !f.dir) continue;
+        // Above the door head the opening is solid wall: the bathroom heater socket sits over the door on purpose (engineer review 2026-11-10).
+        if (f.kind === "door" && c.point[2] - u.baseZ > DOOR_HEAD_MM) continue;
         if (wall && f.meta?.wallIndex !== undefined && wall.meta?.wallIndex !== undefined && f.meta.wallIndex !== wall.meta.wallIndex) continue;
         const { along, across } = alongAcross(p, f);
         const [lo, hi] = interval(f);
@@ -405,6 +431,7 @@ export function hostingConstraints(cfg: OfficeConfig, existing: Pt3[] = []): Con
     // 4. wet zones
     (c, u) => {
       if (!["socket", "socket_3ph", "data", "tv"].includes(c.role)) return { ok: true };
+      if (c.point[2] - u.baseZ >= WET_ZONE_TOP_MM) return { ok: true }; // wet zones 0-2 end at 2250 mm above the floor
       const p: Pt2 = [c.point[0], c.point[1]];
       for (const f of u.features) {
         if (f.parent !== c.parent || !f.tags?.includes("wet")) continue;
@@ -459,6 +486,11 @@ export interface RoomPlacement {
   hostMode: "ceiling" | "wall" | "level";
   levelName?: string;
   scheduleLevel?: string;
+  /** Set after placement (the template device's Comments ride along here). */
+  parameters?: Record<string, string>;
+  /** Appended to the parameter's current value with " | " (provenance tags never erase the designer's text). */
+  appendParameters?: Record<string, string>;
+  workset?: string;
 }
 
 /** Engine output -> placements in the shape apply_electrical_design / place_electrical_element expect. */
@@ -477,6 +509,7 @@ export function toPlacements(placed: Placed[], levelName: string | undefined, un
       hostMode: p.host === "ceiling" ? "ceiling" : p.host === "level" ? "level" : "wall",
       levelName,
       scheduleLevel: levelName,
+      ...(p.props?.comments ? { parameters: { Comments: String(p.props.comments) } } : {}),
     }));
 }
 

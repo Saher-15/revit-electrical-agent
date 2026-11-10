@@ -171,6 +171,21 @@ test("hosting checks: behind counter at 300 mm fails, above it passes; door fram
   assert.equal(run("switch", [100, 2200, 1100], "03-MBR").ok, true);
   assert.equal(run("socket", [3950, 3000, 300], "03-MBR").check, "wall"); // east wall is glass
   assert.equal(run("light", [3950, 3000, 2700], "03-MBR").ok, true); // ceiling devices do not care about walls
+  assert.notEqual(run("socket", [50, 2600, 2300], "03-MBR").check, "opening"); // heater socket above the door head is fine (review 2026-11-10)
+});
+
+test("placement config: forced instance params by family, workset by category, provenance appended", async () => {
+  const { applyPlacementConfig } = await import("../build/pattern/adapters/revit-rooms/placement.js");
+  const cfgP = { instanceParams: [{ familyMatch: "wp", set: { "Symbol offset": 0 } }], worksets: { "Lighting Fixtures": "EL_040_Lighting" } };
+  const a = applyPlacementConfig({ familyName: "Tpz_3D_EF_Socket 1-ph Under Plaster WP", category: "Electrical Fixtures", parameters: { Comments: "מקרר" } }, cfgP, "Claude: derived from 02");
+  assert.deepEqual(a.parameters, { Comments: "מקרר", "Symbol offset": "0" });
+  assert.deepEqual(a.appendParameters, { Comments: "Claude: derived from 02" });
+  assert.equal(a.workset, undefined);
+  const b = applyPlacementConfig({ familyName: "Tpz_3D_LF_ Lighting Pointes", category: "Lighting Fixtures", parameters: { "Symbol offset": "5" } }, cfgP);
+  assert.equal(b.workset, "EL_040_Lighting");
+  assert.equal(b.appendParameters, undefined);
+  const c = applyPlacementConfig({ familyName: "X WP", category: "Electrical Fixtures", parameters: { "Symbol offset": "5" } }, cfgP);
+  assert.equal(c.parameters["Symbol offset"], "5"); // explicit value on the placement wins
 });
 
 test("linear adapter: poles learned on one station continue along the whole alignment", () => {
@@ -322,4 +337,25 @@ test("real-model lessons: link levels by door elevation, duplicate rooms, door g
   assert.equal(sum.byStatus.dropped ?? 0, 0, JSON.stringify(sum.dropped));
   assert.equal(placed.filter((p) => p.parent === "L1:713" && p.role === "socket").length, 2);
   assert.equal(placed.filter((p) => p.parent === "L1:712" && p.role === "socket").length, 0);
+});
+
+test("wall devices inside the wall thickness (outside every room polygon) are assigned to the room they face and learned", () => {
+  const snap = snapshot(true);
+  // a shutter feed 100 mm outside the bedroom's south wall line (inside the 200 mm wall), no roomKey from Revit
+  snap.elements.push({ id: 8, category: "Electrical Fixtures", builtInCategory: "OST_ElectricalFixtures", family: "TPZ Shutter", type: "feed", typeId: 1, xyzMm: [2500, -100, 2200], parameters: {} });
+  // and one 1 m away from any room: ignored
+  snap.elements.push({ id: 9, category: "Electrical Fixtures", builtInCategory: "OST_ElectricalFixtures", family: "TPZ Socket Double", type: "16A", typeId: 1, xyzMm: [2500, -1000, 300], parameters: {} });
+  const t = buildUnit(snap, { roomFilter: "03-" }, cfg);
+  const shutter = t.unit.designed.find((d) => d.id === "8");
+  assert.ok(shutter, "in-wall device is kept");
+  assert.equal(shutter.parent, "03-MBR");
+  assert.equal(shutter.host, "wall");
+  assert.ok(!t.unit.designed.find((d) => d.id === "9"), "a device far from every room is not assigned");
+  const pattern = learn(t.unit, learnOpts);
+  assert.ok(pattern.rules.some((r) => r.designedId === "8" || r.source?.designedId === "8" || JSON.stringify(r).includes('"8"')), "rule learned for the in-wall device");
+  const target = buildUnit(snap, { roomFilter: "04-" }, cfg);
+  const placed = replicate(pattern, target.unit, hostingConstraints(cfg), {});
+  const twin = placed.filter((p) => p.status !== "dropped" && p.role === shutter.role && Math.abs(p.point[0] - 22500) < 1);
+  assert.equal(twin.length, 1, "replicated once in the twin bedroom");
+  assert.ok(Math.abs(twin[0].point[1] - -100) < 1, "at the same in-wall offset (the target wall line)");
 });

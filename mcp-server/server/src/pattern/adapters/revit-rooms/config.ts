@@ -21,10 +21,27 @@ export interface OfficeConfig {
     slideStep: number;
     slideMax: number;
     wetZones: { socketMinFromShowerEdge: number; socketMinHeightZone2: number };
+    /** A wall device's location point sits inside the wall thickness, outside every room polygon: assign it to the nearest room within this distance. */
+    wallAssignMaxMm: number;
   };
   roomTypes: RoomTypeCfg[];
   anchors: AnchorCfg[];
   scheduleLevel: { always: boolean; parameter: string };
+  /** How placements are written to the model (office.json "placement"); all optional. */
+  placement?: PlacementCfg;
+}
+
+export interface PlacementCfg {
+  /** Elements per place request; Revit times out above ~5. */
+  batchSize?: number;
+  refreshViewAfterCommit?: boolean;
+  requireActiveDocumentMatch?: boolean;
+  /** Provenance written to a parameter (default Comments) with per-kind colours. */
+  provenance?: { parameter: string; derived: string; own: string; colors?: Record<string, number[]> };
+  /** Instance parameters forced on every placed family whose name contains familyMatch (case-insensitive), e.g. WP families' "Symbol offset" = 0. */
+  instanceParams?: { familyMatch: string; set: Record<string, string | number> }[];
+  /** Category name -> user workset name. */
+  worksets?: Record<string, string>;
 }
 
 export const DEFAULT_OFFICE_CONFIG: OfficeConfig = {
@@ -38,6 +55,7 @@ export const DEFAULT_OFFICE_CONFIG: OfficeConfig = {
     nonCleanWallKeywords: ["זכוכית", "glass", "curtain", "מעקה", "railing", "shaft", "פיר", "ויטרינה"],
     clearFromDoorFrame: 100, switchFromDoorFrame: 150, clearFromWindow: 100, clearBetweenDevices: 100, slideStep: 100, slideMax: 600,
     wetZones: { socketMinFromShowerEdge: 600, socketMinHeightZone2: 1200 },
+    wallAssignMaxMm: 400,
   },
   roomTypes: [
     { id: "master_bedroom", keywords: ["חדר שינה הורים", "ח. הורים", "הורים", "master", "mbr"] },
@@ -46,7 +64,7 @@ export const DEFAULT_OFFICE_CONFIG: OfficeConfig = {
     { id: "dining", keywords: ["פינת אוכל", "dining"] },
     { id: "kitchen", keywords: ["מטבח", "kitchen"] },
     { id: "bathroom", keywords: ["אמבטיה", "רחצה", "מקלחת", "bath", "shower"] },
-    { id: "toilet", keywords: ["שירותים", "wc", "toilet"] },
+    { id: "toilet", keywords: ["שירותים", "ש.אורחים", "ש. אורחים", "שירותי אורחים", "אורחים", "wc", "toilet", "guest wc"] },
     { id: "mamad", keywords: ["ממ\"ד", "ממד", "מרחב מוגן", "protected", "shelter"] },
     { id: "laundry", keywords: ["כביסה", "שירות", "laundry", "utility"] },
     { id: "corridor", keywords: ["מסדרון", "פרוזדור", "hall", "corridor"] },
@@ -62,7 +80,7 @@ export const DEFAULT_OFFICE_CONFIG: OfficeConfig = {
     { kind: "wardrobe", keywords: ["ארון", "closet", "wardrobe"], blocksWall: true },
     { kind: "tv", keywords: ["טלוויזיה", "tv", "מזנון"] },
     { kind: "desk", keywords: ["שולחן עבודה", "desk"] },
-    { kind: "sofa", keywords: ["ספה", "sofa"] },
+    { kind: "sofa", keywords: ["ספה", "sofa", "ספה מיטה", "sofa bed", "sofabed"] },
     { kind: "kitchen_counter", keywords: ["משטח", "counter", "תחתון", "base cabinet"], blocksWall: true, blockHeight: [0, 900] },
     { kind: "upper_cabinet", keywords: ["עליון", "wall cabinet"], blocksWall: true, blockHeight: [1400, 2200] },
     { kind: "sink", keywords: ["כיור", "sink"] },

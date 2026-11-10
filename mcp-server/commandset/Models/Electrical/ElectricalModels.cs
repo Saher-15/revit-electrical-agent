@@ -1,4 +1,4 @@
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using RevitMCPCommandSet.Models.Common;
 
 namespace RevitMCPCommandSet.Models.Electrical
@@ -67,6 +67,14 @@ namespace RevitMCPCommandSet.Models.Electrical
         /// <summary>Instance parameters to set after placement (name -> value as text).</summary>
         [JsonProperty("parameters")]
         public Dictionary<string, string> Parameters { get; set; } = new Dictionary<string, string>();
+
+        /// <summary>Appended to the parameter's current value with " | " (provenance tags keep the designer's text).</summary>
+        [JsonProperty("appendParameters")]
+        public Dictionary<string, string> AppendParameters { get; set; } = new Dictionary<string, string>();
+
+        /// <summary>User workset name for the new element (workshared models only).</summary>
+        [JsonProperty("workset")]
+        public string Workset { get; set; }
     }
 
     public class PlacedElementInfo

@@ -3,6 +3,8 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { withRevitConnection } from "../utils/ConnectionManager.js";
 import { Placement, loadProposal } from "../analysis/design.js";
+import { loadOfficeConfig } from "../pattern/adapters/revit-rooms/config.js";
+import { applyPlacementConfig } from "../pattern/adapters/revit-rooms/placement.js";
 
 interface AppliedRecord {
   name: string;
@@ -24,10 +26,13 @@ export function registerApplyElectricalDesignTool(server: McpServer) {
       roles: z.array(z.enum(["lighting", "socket", "switch", "emergency"])).optional(),
       batchSize: z.number().optional().default(20).describe("Elements per Revit request"),
       maxElements: z.number().optional().default(400).describe("Stop after this many in one call"),
+      provenance: z.string().optional().describe("Tag appended to each element's Comments (e.g. 'Claude: derived from 02'); the designer's own Comments text is kept"),
+      officeConfigPath: z.string().optional().describe("office.json; its 'placement' block adds forced instance parameters and worksets"),
     },
     async (args) => {
       try {
         const proposal = loadProposal(args.proposalPath);
+        const placementCfg = loadOfficeConfig(args.officeConfigPath).placement;
         const appliedPath = args.proposalPath.replace(/\.json$/i, "") + "_APPLIED.json";
         const applied: AppliedRecord[] = fs.existsSync(appliedPath) ? JSON.parse(fs.readFileSync(appliedPath, "utf8")) : [];
         const done = new Set(applied.filter((a) => a.elementId > 0).map((a) => a.name));
@@ -45,7 +50,7 @@ export function registerApplyElectricalDesignTool(server: McpServer) {
         for (let i = 0; i < todo.length; i += size) {
           const batch = todo.slice(i, i + size);
           // scheduleLevel (replication proposals) rides through to place_electrical_element.
-          const data = batch.map(({ role, roomKey, ...rest }) => rest);
+          const data = batch.map(({ role, roomKey, ...rest }) => applyPlacementConfig(rest as any, placementCfg, args.provenance));
           let response: any;
           try {
             response = await withRevitConnection(async (revitClient) => revitClient.sendCommand("place_electrical_element", { data }));
