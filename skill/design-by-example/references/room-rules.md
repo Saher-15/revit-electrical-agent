@@ -30,3 +30,18 @@ Electrical panel: one per apartment, entrance hall/corridor, 1800 mm to top, not
 - Single-phase water-protected isolator for the boiler: next to the boiler in the service balcony, not in the bathroom.
 - One electric-boiler switch per apartment, next to the general toilet; none at the bedroom door.
 - Light switch heights: single and 2-way 1200 mm; the 2-way above the nightstand 600 mm.
+
+## Mounting heights (engineer's rules 2026-11-10, finished floor to device axis)
+| Device | Height (cm) |
+|---|---|
+| Ceiling devices (lights, emergency, detectors, speakers, presence) | flush to ceiling (lowered ceiling where present) |
+| Single switch, light button, backlight switch, bell push | 120 |
+| 2-way switch | 120; above the nightstand / under the window beside the bed 60 |
+| Shutter 3-mode switch | 120; above the nightstand 60 |
+| Boiler switch, water-protected isolators (1-ph, 3-ph) | 150 |
+| Shutter feed | 260 |
+| TV outlet | 170 |
+| Workstation box | 40 |
+| Sockets by purpose | bedroom 80, nightstand 60, desk 60, living 80, TV 170, fridge 130, hood filter 220, AC 240, basin 110, kitchen counter 110, heater above door 230, washer/dryer 60, oven/cooktop/dishwasher 60, balcony 110 |
+| Other | AC feed 250, data/phone 60 (beside TV 170), intercom 120 (no screen 80), door bell 240, apartment panel 140 |
+Learned template heights are overridden by this table.
