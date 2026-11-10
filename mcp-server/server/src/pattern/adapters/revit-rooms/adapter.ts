@@ -183,6 +183,16 @@ function roomOf(p: Pt2, rooms: SnapshotRoom[]): SnapshotRoom | undefined {
   return rooms.find((r) => pointInPolygon(p as P2, r.boundaryMm!.map(p2) as P2[]));
 }
 
+/** Nearest room whose boundary is within maxMm of the point (a device inside a wall belongs to the room it faces). */
+function nearestRoom(p: Pt2, rooms: SnapshotRoom[], maxMm: number): SnapshotRoom | undefined {
+  let best: { r: SnapshotRoom; d: number } | undefined;
+  for (const r of rooms) {
+    const d = distToPolygon(p, r.boundaryMm!.map(p2));
+    if (d <= maxMm && (!best || d < best.d)) best = { r, d };
+  }
+  return best?.r;
+}
+
 export interface BuiltUnit { unit: Unit; rooms: SnapshotRoom[]; roomTypes: Record<string, string>; levelName?: string; warnings: string[] }
 
 /** Build one unit (apartment or room) from a snapshot. */
@@ -286,11 +296,15 @@ export function buildUnit(snap: ModelSnapshot, sel: UnitSelector, cfg: OfficeCon
   for (const e of snap.elements) {
     if (!e.xyzMm) continue;
     const ep = p2(e.xyzMm);
-    const r = (e.roomKey && rooms.find((x) => x.key === e.roomKey)) || roomOf(ep, rooms);
+    // Wall devices sit inside the wall thickness, outside every room polygon (KYM floor 02: 341 of 655 points). Fall back
+    // to the nearest room within a wall thickness; Revit puts the location point on the host face, so the nearest wins.
+    let inWall = false;
+    let r = (e.roomKey && rooms.find((x) => x.key === e.roomKey)) || roomOf(ep, rooms);
+    if (!r) { r = nearestRoom(ep, rooms, cfg.hosting.wallAssignMaxMm ?? 400); inWall = !!r; }
     if (!r) continue;
     const z = e.xyzMm[2];
     const nw = nearestWall(ep, wallsByRoom.get(r.key)!);
-    const onWall = nw && nw.dist <= 250;
+    const onWall = inWall || (nw && nw.dist <= 250);
     const host = e.hostCategory?.toLowerCase().includes("ceiling") || (!onWall && z - baseZ > 2000) ? "ceiling" : onWall ? "wall" : "level";
     // The engineer put it inside a blocking footprint on purpose (appliance socket behind the counter / fridge): remember that.
     const behindAppliance = features.some((f) => f.parent === r.key && f.tags?.includes("blocks-wall") && inFootprint([ep[0], ep[1], z], f));
@@ -361,7 +375,7 @@ export function hostingConstraints(cfg: OfficeConfig, existing: Pt3[] = []): Con
       const poly = room?.meta?.polygon as Pt2[] | undefined;
       if (!poly || poly.length < 3) return { ok: true };
       const p: Pt2 = [c.point[0], c.point[1]];
-      if (pointInPolygon(p as P2, poly as P2[]) || distToPolygon(p, poly) <= 150) return { ok: true };
+      if (pointInPolygon(p as P2, poly as P2[]) || distToPolygon(p, poly) <= Math.max(150, h.wallAssignMaxMm ?? 400)) return { ok: true };
       return { ok: false, check: "room", reason: `outside room ${c.parent}` };
     },
     // 1. non-clean host wall

@@ -21,6 +21,17 @@ export interface OfficeConfig {
     slideStep: number;
     slideMax: number;
     wetZones: { socketMinFromShowerEdge: number; socketMinHeightZone2: number };
+    /** A wall device's location point sits inside the wall thickness, outside every room polygon: assign it to the nearest room within this distance. */
+    wallAssignMaxMm: number;
+  };
+  /** Placement hygiene (batching, instance parameters per family, worksets, provenance). Read by apply_electrical_design. */
+  placement?: {
+    batchSize?: number;
+    refreshViewAfterCommit?: boolean;
+    requireActiveDocumentMatch?: boolean;
+    provenance?: { parameter: string; derived: string; own: string; colors?: Record<string, number[]> };
+    instanceParams?: { familyMatch: string; set: Record<string, string | number> }[];
+    worksets?: Record<string, string>;
   };
   roomTypes: RoomTypeCfg[];
   anchors: AnchorCfg[];
@@ -38,6 +49,7 @@ export const DEFAULT_OFFICE_CONFIG: OfficeConfig = {
     nonCleanWallKeywords: ["זכוכית", "glass", "curtain", "מעקה", "railing", "shaft", "פיר", "ויטרינה"],
     clearFromDoorFrame: 100, switchFromDoorFrame: 150, clearFromWindow: 100, clearBetweenDevices: 100, slideStep: 100, slideMax: 600,
     wetZones: { socketMinFromShowerEdge: 600, socketMinHeightZone2: 1200 },
+    wallAssignMaxMm: 400,
   },
   roomTypes: [
     { id: "master_bedroom", keywords: ["חדר שינה הורים", "ח. הורים", "הורים", "master", "mbr"] },

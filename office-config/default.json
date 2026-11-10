@@ -100,7 +100,8 @@
     "wetZones": {
       "socketMinFromShowerEdge": 600,
       "socketMinHeightZone2": 1200
-    }
+    },
+    "wallAssignMaxMm": 400
   },
   "roomTypes": [
     {
