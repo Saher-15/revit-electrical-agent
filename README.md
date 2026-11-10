@@ -11,6 +11,7 @@ Built on a fork of [mcp-servers-for-revit](https://github.com/mcp-servers-for-re
 | Folder | What |
 | --- | --- |
 | `DESIGN.md` | System design: concepts, architecture, adapters, onboarding, test strategy, roadmap. |
+| `docs/ROLLOUT-PLAN.he.md` | Rollout plan (Hebrew): shared knowledge layers, workflows, four rollout stages from one office to other companies, roles, metrics, costs, risks. |
 | `mcp-server/` | The MCP server (TypeScript, `server/`) with the pattern engine in `server/src/pattern/` and its adapters, plus the Revit add-in (C#, `plugin/` + `commandset/`), install scripts and per-command docs (`ELECTRICAL.md`, `ANALYSIS.md`, `DRAWING.md`, `PRODUCTION.md`, `CHAT.md`). |
 | `skill/design-by-example/` | The Claude Skill: workflow, approval gates, room rules, hosting rules, how to read the architect's model, pattern format. |
 | `office-config/` | Per-office settings template (`default.json`) and how to fill it. |
