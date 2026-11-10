@@ -167,8 +167,13 @@
       "id": "toilet",
       "keywords": [
         "שירותים",
+        "ש.אורחים",
+        "ש. אורחים",
+        "שירותי אורחים",
+        "אורחים",
         "WC",
-        "toilet"
+        "toilet",
+        "guest wc"
       ],
       "lux": 100
     },
@@ -298,7 +303,10 @@
       "kind": "sofa",
       "keywords": [
         "ספה",
-        "sofa"
+        "sofa",
+        "ספה מיטה",
+        "sofa bed",
+        "sofabed"
       ]
     },
     {
