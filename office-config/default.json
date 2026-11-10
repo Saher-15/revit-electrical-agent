@@ -1,74 +1,482 @@
 {
   "office": "default (Israel, residential)",
   "units": "mm",
-  "revitYears": [2025, 2026],
-  "voltage": { "single": 230, "three": 400 },
+  "revitYears": [
+    2025,
+    2026
+  ],
+  "voltage": {
+    "single": 230,
+    "three": 400
+  },
   "heights": {
-    "socket": 300, "socketBedside": 400, "socketCounter": 1150, "socketBathroom": 1200, "socketLaundry": 1200,
-    "switch": 1100, "switchBedside": 700, "tv": 1200, "data": 300, "ac": 2200, "hood": 2000,
-    "panelTop": 1800, "intercom": 1400, "bell": 1400, "cableTray": 2900, "conduit": 2800
+    "socket": 300,
+    "socketBedside": 400,
+    "socketCounter": 1150,
+    "socketBathroom": 1200,
+    "socketLaundry": 1200,
+    "switch": 1100,
+    "switchBedside": 700,
+    "tv": 1200,
+    "data": 300,
+    "ac": 2200,
+    "hood": 2000,
+    "panelTop": 1800,
+    "intercom": 1400,
+    "bell": 1400,
+    "cableTray": 2900,
+    "conduit": 2800
   },
   "families": {
-    "socketDouble": { "familyName": "", "typeName": "" },
-    "socketSingle": { "familyName": "", "typeName": "" },
-    "socket3Phase": { "familyName": "", "typeName": "" },
-    "switch1": { "familyName": "", "typeName": "" },
-    "switch2way": { "familyName": "", "typeName": "" },
-    "shutterSwitch": { "familyName": "", "typeName": "" },
-    "ceilingLight": { "familyName": "", "typeName": "", "lumens": 1600 },
-    "ceilingLightIP44": { "familyName": "", "typeName": "" },
-    "tvOutlet": { "familyName": "", "typeName": "" },
-    "dataOutlet": { "familyName": "", "typeName": "" },
-    "acPoint": { "familyName": "", "typeName": "" },
-    "panel": { "familyName": "", "typeName": "" },
+    "socketDouble": {
+      "familyName": "",
+      "typeName": ""
+    },
+    "socketSingle": {
+      "familyName": "",
+      "typeName": ""
+    },
+    "socket3Phase": {
+      "familyName": "",
+      "typeName": ""
+    },
+    "switch1": {
+      "familyName": "",
+      "typeName": ""
+    },
+    "switch2way": {
+      "familyName": "",
+      "typeName": ""
+    },
+    "shutterSwitch": {
+      "familyName": "",
+      "typeName": ""
+    },
+    "ceilingLight": {
+      "familyName": "",
+      "typeName": "",
+      "lumens": 1600
+    },
+    "ceilingLightIP44": {
+      "familyName": "",
+      "typeName": ""
+    },
+    "tvOutlet": {
+      "familyName": "",
+      "typeName": ""
+    },
+    "dataOutlet": {
+      "familyName": "",
+      "typeName": ""
+    },
+    "acPoint": {
+      "familyName": "",
+      "typeName": ""
+    },
+    "panel": {
+      "familyName": "",
+      "typeName": ""
+    },
     "familyPrefix": "TPZ "
   },
   "hosting": {
     "minWallThickness": 70,
-    "nonCleanWallKeywords": ["זכוכית", "glass", "curtain", "מעקה", "railing", "shaft", "פיר", "ויטרינה"],
-    "clearFromDoorFrame": 100, "switchFromDoorFrame": 150, "clearFromWindow": 100,
-    "clearBetweenDevices": 100, "slideStep": 100, "slideMax": 600,
-    "wetZones": { "socketMinFromShowerEdge": 600, "socketMinHeightZone2": 1200 }
+    "nonCleanWallKeywords": [
+      "זכוכית",
+      "glass",
+      "curtain",
+      "מעקה",
+      "railing",
+      "shaft",
+      "פיר",
+      "ויטרינה"
+    ],
+    "clearFromDoorFrame": 100,
+    "switchFromDoorFrame": 150,
+    "clearFromWindow": 100,
+    "clearBetweenDevices": 100,
+    "slideStep": 100,
+    "slideMax": 600,
+    "wetZones": {
+      "socketMinFromShowerEdge": 600,
+      "socketMinHeightZone2": 1200
+    }
   },
   "roomTypes": [
-    { "id": "master_bedroom", "keywords": ["חדר שינה הורים", "ח. הורים", "הורים", "master", "MBR"], "lux": 150 },
-    { "id": "bedroom", "keywords": ["חדר שינה", "ח.שינה", "ח. שינה", "ח שינה", "ילדים", "bedroom"], "lux": 150 },
-    { "id": "living", "keywords": ["סלון", "מגורים", "living"], "lux": 150 },
-    { "id": "dining", "keywords": ["פינת אוכל", "dining"], "lux": 150 },
-    { "id": "kitchen", "keywords": ["מטבח", "kitchen"], "lux": 300 },
-    { "id": "bathroom", "keywords": ["אמבטיה", "רחצה", "מקלחת", "bath", "shower"], "lux": 150 },
-    { "id": "toilet", "keywords": ["שירותים", "WC", "toilet"], "lux": 100 },
-    { "id": "mamad", "keywords": ["ממ\"ד", "ממד", "מרחב מוגן", "protected", "shelter"], "lux": 150 },
-    { "id": "laundry", "keywords": ["כביסה", "שירות", "laundry", "utility"], "lux": 150 },
-    { "id": "corridor", "keywords": ["מסדרון", "פרוזדור", "hall", "corridor"], "lux": 100 },
-    { "id": "circulation", "keywords": ["מדרגות", "stair", "מעלית", "elevator", "lift", "לובי", "lobby", "מבואה", "פיר", "shaft", "חדר אשפה", "garbage"], "lux": 100 },
-    { "id": "balcony", "keywords": ["מרפסת", "balcony", "terrace"], "lux": 50 },
-    { "id": "storage", "keywords": ["מחסן", "storage"], "lux": 100 },
-    { "id": "meeting", "keywords": ["חדר ישיבות", "meeting"], "lux": 500 },
-    { "id": "office", "keywords": ["משרד", "office"], "lux": 500 }
+    {
+      "id": "master_bedroom",
+      "keywords": [
+        "חדר שינה הורים",
+        "ח. הורים",
+        "הורים",
+        "master",
+        "MBR"
+      ],
+      "lux": 150
+    },
+    {
+      "id": "bedroom",
+      "keywords": [
+        "חדר שינה",
+        "ח.שינה",
+        "ח. שינה",
+        "ח שינה",
+        "ילדים",
+        "bedroom"
+      ],
+      "lux": 150
+    },
+    {
+      "id": "living",
+      "keywords": [
+        "סלון",
+        "מגורים",
+        "living"
+      ],
+      "lux": 150
+    },
+    {
+      "id": "dining",
+      "keywords": [
+        "פינת אוכל",
+        "dining"
+      ],
+      "lux": 150
+    },
+    {
+      "id": "kitchen",
+      "keywords": [
+        "מטבח",
+        "kitchen"
+      ],
+      "lux": 300
+    },
+    {
+      "id": "bathroom",
+      "keywords": [
+        "אמבטיה",
+        "רחצה",
+        "מקלחת",
+        "bath",
+        "shower"
+      ],
+      "lux": 150
+    },
+    {
+      "id": "toilet",
+      "keywords": [
+        "שירותים",
+        "WC",
+        "toilet"
+      ],
+      "lux": 100
+    },
+    {
+      "id": "mamad",
+      "keywords": [
+        "ממ\"ד",
+        "ממד",
+        "מרחב מוגן",
+        "protected",
+        "shelter"
+      ],
+      "lux": 150
+    },
+    {
+      "id": "laundry",
+      "keywords": [
+        "כביסה",
+        "שירות",
+        "laundry",
+        "utility"
+      ],
+      "lux": 150
+    },
+    {
+      "id": "corridor",
+      "keywords": [
+        "מסדרון",
+        "פרוזדור",
+        "hall",
+        "corridor"
+      ],
+      "lux": 100
+    },
+    {
+      "id": "circulation",
+      "keywords": [
+        "מדרגות",
+        "stair",
+        "מעלית",
+        "elevator",
+        "lift",
+        "לובי",
+        "lobby",
+        "מבואה",
+        "פיר",
+        "shaft",
+        "חדר אשפה",
+        "garbage"
+      ],
+      "lux": 100
+    },
+    {
+      "id": "balcony",
+      "keywords": [
+        "מרפסת",
+        "balcony",
+        "terrace"
+      ],
+      "lux": 50
+    },
+    {
+      "id": "storage",
+      "keywords": [
+        "מחסן",
+        "storage"
+      ],
+      "lux": 100
+    },
+    {
+      "id": "meeting",
+      "keywords": [
+        "חדר ישיבות",
+        "meeting"
+      ],
+      "lux": 500
+    },
+    {
+      "id": "office",
+      "keywords": [
+        "משרד",
+        "office"
+      ],
+      "lux": 500
+    }
   ],
   "anchors": [
-    { "kind": "bed", "keywords": ["מיטה", "bed"] },
-    { "kind": "nightstand", "keywords": ["שידה", "nightstand"] },
-    { "kind": "wardrobe", "keywords": ["ארון", "closet", "wardrobe"], "blocksWall": true },
-    { "kind": "tv", "keywords": ["טלוויזיה", "TV", "מזנון"] },
-    { "kind": "desk", "keywords": ["שולחן עבודה", "desk"] },
-    { "kind": "sofa", "keywords": ["ספה", "sofa"] },
-    { "kind": "kitchen_counter", "keywords": ["משטח", "counter", "תחתון", "base cabinet"], "blocksWall": true, "blockHeight": [0, 900] },
-    { "kind": "upper_cabinet", "keywords": ["עליון", "wall cabinet"], "blocksWall": true, "blockHeight": [1400, 2200] },
-    { "kind": "sink", "keywords": ["כיור", "sink"] },
-    { "kind": "cooktop", "keywords": ["כיריים", "cooktop", "hob"] },
-    { "kind": "oven", "keywords": ["תנור", "oven"] },
-    { "kind": "fridge", "keywords": ["מקרר", "fridge", "refrigerator"], "blocksWall": true },
-    { "kind": "dishwasher", "keywords": ["מדיח", "dishwasher"] },
-    { "kind": "washing_machine", "keywords": ["מכונת כביסה", "washer", "washing"] },
-    { "kind": "dryer", "keywords": ["מייבש", "dryer"] },
-    { "kind": "toilet", "keywords": ["אסלה", "toilet", "WC"] },
-    { "kind": "basin", "keywords": ["כיור רחצה", "basin", "lavatory"] },
-    { "kind": "shower", "keywords": ["מקלחת", "shower"], "wet": true },
-    { "kind": "bath", "keywords": ["אמבט", "bathtub"], "wet": true },
-    { "kind": "boiler", "keywords": ["דוד", "boiler", "water heater"], "blocksWall": true },
-    { "kind": "ac_indoor", "keywords": ["מזגן", "מעבה", "FCU", "AC"] }
+    {
+      "kind": "bed",
+      "keywords": [
+        "מיטה",
+        "bed"
+      ]
+    },
+    {
+      "kind": "nightstand",
+      "keywords": [
+        "שידה",
+        "nightstand"
+      ]
+    },
+    {
+      "kind": "wardrobe",
+      "keywords": [
+        "ארון",
+        "closet",
+        "wardrobe"
+      ],
+      "blocksWall": true
+    },
+    {
+      "kind": "tv",
+      "keywords": [
+        "טלוויזיה",
+        "TV",
+        "מזנון"
+      ]
+    },
+    {
+      "kind": "desk",
+      "keywords": [
+        "שולחן עבודה",
+        "desk"
+      ]
+    },
+    {
+      "kind": "sofa",
+      "keywords": [
+        "ספה",
+        "sofa"
+      ]
+    },
+    {
+      "kind": "kitchen_counter",
+      "keywords": [
+        "משטח",
+        "counter",
+        "תחתון",
+        "base cabinet"
+      ],
+      "blocksWall": true,
+      "blockHeight": [
+        0,
+        900
+      ]
+    },
+    {
+      "kind": "upper_cabinet",
+      "keywords": [
+        "עליון",
+        "wall cabinet"
+      ],
+      "blocksWall": true,
+      "blockHeight": [
+        1400,
+        2200
+      ]
+    },
+    {
+      "kind": "sink",
+      "keywords": [
+        "כיור",
+        "sink"
+      ]
+    },
+    {
+      "kind": "cooktop",
+      "keywords": [
+        "כיריים",
+        "cooktop",
+        "hob"
+      ]
+    },
+    {
+      "kind": "oven",
+      "keywords": [
+        "תנור",
+        "oven"
+      ]
+    },
+    {
+      "kind": "fridge",
+      "keywords": [
+        "מקרר",
+        "fridge",
+        "refrigerator"
+      ],
+      "blocksWall": true
+    },
+    {
+      "kind": "dishwasher",
+      "keywords": [
+        "מדיח",
+        "dishwasher"
+      ]
+    },
+    {
+      "kind": "washing_machine",
+      "keywords": [
+        "מכונת כביסה",
+        "washer",
+        "washing"
+      ]
+    },
+    {
+      "kind": "dryer",
+      "keywords": [
+        "מייבש",
+        "dryer"
+      ]
+    },
+    {
+      "kind": "toilet",
+      "keywords": [
+        "אסלה",
+        "toilet",
+        "WC"
+      ]
+    },
+    {
+      "kind": "basin",
+      "keywords": [
+        "כיור רחצה",
+        "basin",
+        "lavatory"
+      ]
+    },
+    {
+      "kind": "shower",
+      "keywords": [
+        "מקלחת",
+        "shower"
+      ],
+      "wet": true
+    },
+    {
+      "kind": "bath",
+      "keywords": [
+        "אמבט",
+        "bathtub"
+      ],
+      "wet": true
+    },
+    {
+      "kind": "boiler",
+      "keywords": [
+        "דוד",
+        "boiler",
+        "water heater"
+      ],
+      "blocksWall": true
+    },
+    {
+      "kind": "ac_indoor",
+      "keywords": [
+        "מזגן",
+        "מעבה",
+        "FCU",
+        "AC"
+      ]
+    }
   ],
-  "scheduleLevel": { "always": true, "parameter": "Schedule Level" }
+  "scheduleLevel": {
+    "always": true,
+    "parameter": "Schedule Level"
+  },
+  "placement": {
+    "batchSize": 5,
+    "refreshViewAfterCommit": true,
+    "requireActiveDocumentMatch": true,
+    "provenance": {
+      "parameter": "Comments",
+      "derived": "Claude: derived from {sourceLevel} | apt {unit}/{room}",
+      "own": "Claude: own design | apt {unit}/{room}",
+      "colors": {
+        "derived": [
+          0,
+          112,
+          192
+        ],
+        "own": [
+          255,
+          128,
+          0
+        ]
+      }
+    },
+    "instanceParams": [
+      {
+        "familyMatch": "WP",
+        "set": {
+          "Symbol offset": 0
+        }
+      },
+      {
+        "familyMatch": "Lighting buttons",
+        "set": {
+          "Tpz_Symbol 1-100": "No",
+          "Tpz_Symbol 1-200": "No"
+        }
+      }
+    ],
+    "worksets": {
+      "Electrical Fixtures": "EL_020_Devices",
+      "Lighting Devices": "EL_020_Devices",
+      "Lighting Fixtures": "EL_040_Lighting",
+      "Communication Devices": "EL_020_Devices",
+      "Data Devices": "EL_020_Devices",
+      "Electrical Equipment": "EL_010_Equipment"
+    }
+  }
 }
