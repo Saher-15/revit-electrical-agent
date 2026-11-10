@@ -24,6 +24,11 @@ that produced it so the reason survives.
   replicated from the engineer's example, `Claude: own design | apt D/711` for points Claude added or
   moved on its own reasoning. The engineer identifies a point by selecting it; apartment letters alone
   mean nothing to him, so always include the architect's room number.
+- **Append provenance to Comments, never overwrite.** The engineer's own Comments ("מקרר", "תנור חימום") are
+  design intent; the provenance tag goes after them, separated by " | ".
+- **Ignore template points below the unit's floor.** The example floor can hold elements that belong to another
+  level (KYM floor 02: points at −350 and −5000). Copying their relative height put 14 points inside the slab.
+  A designed point with z below floor − 50 mm is not learned; say how many were skipped.
 - **Colour the two sets differently in the working view**: blue RGB(0,112,192) = derived from the
   example, orange RGB(255,128,0) = own design. Say the two colours in the report.
 - **Work in a dedicated view** (`03_Claude`, from the office electrical template) when the level has
