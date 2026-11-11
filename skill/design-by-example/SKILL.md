@@ -15,6 +15,7 @@ language (Hebrew by default), with numbered short steps; they skim.
 1. **One example, then the rest.** Find the instance the engineer designed, read it back in words, get a yes, then replicate. Never copy-paste elements between instances; every point is re-derived against the target's own geometry and checked.
 2. **Nothing invalid leaves the engine.** Hosting, clearances, heights, level assignment and wet/clean-wall rules are checked on every point; a point that fails is re-placed by rule or dropped with a stated reason, never placed "approximately".
 3. **Provenance on every element.** Comments (or the adapter's equivalent) say where the point came from: derived from the example (`Claude: derived from <example> | <unit>/<room>`) or Claude's own reasoning (`Claude: own design | <unit>/<room>`), and the two are coloured apart in the working view (blue derived, orange own). The engineer must always be able to tell what was learned from what was invented.
+4a. **Other disciplines are read-only obstacles.** If the model holds other systems, keep clear of them and report conflicts; never move or edit their elements (`references/other-disciplines.md`).
 4. **The engineer owns the model.** Never Sync, never Save, never launch a second instance of the tool, never run free code in it, never touch another discipline's elements. Work in a dedicated view. Pause when another document is active.
 5. **Visible progress.** Small batches (4–5 points per transaction), refresh the view after each commit, report after every unit with placed / failed and the reason for each failure.
 6. **Office and project knowledge live in config, not in code or in your head.** `office.json` (families, heights, worksets, instance parameters, room keywords) and the project's `RULES.md` are read at start and win over defaults; the engineer's words win over both.
@@ -67,6 +68,7 @@ The sections below are the Revit electrical adapter.
 - At the end of a session, extract the rules the conversation produced and propose them to the engineer before saving (see `references/session-rules.md`, "Learning new rules").
 
 ## References
+- `references/other-disciplines.md`: other systems in the model (HVAC, plumbing, fire, structure): read-only obstacles, clearances only from rules, conflicts reported not resolved on their side.
 - `references/reading-architecture.md`: what to read from the architect model, category/family keywords (Hebrew + English), how to get heights.
 - `references/room-rules.md`: default devices and heights per room type when no template exists.
 - `references/hosting-rules.md`: hosting and clean-wall checks, Schedule Level.
