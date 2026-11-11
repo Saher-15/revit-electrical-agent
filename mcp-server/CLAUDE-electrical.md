@@ -54,8 +54,12 @@ Copy this file as `CLAUDE.md` into the folder where you run `claude`.
 - Check your own work: after drawing or laying out a sheet, `export_views` to PNG and open the image. Fix overlaps, missing tags or
   viewports running past the title block before you report.
 - Families: prefer library families (`load_family`). Build one with `create_family` only when nothing suitable exists or the engineer asks.
-  Pick the template by host: 'Electrical Fixture wall based' for sockets, 'Lighting Fixture ceiling based' for downlights, 'Electrical Equipment'
-  (partType panelboard) for panels, 'Lighting Device wall based' for switches. Give it a power connector with voltage/poles/apparentLoad, a plan
+  The host type (wall / ceiling / face based) is fixed in the family and cannot be changed from the project later; swapping placed instances
+  to a family with another host type in the Type Selector is often refused by Revit, and when it works the circuits and tags are lost. So prefer
+  face-based templates ('Electrical Fixture' / 'Lighting Device' face based) for sockets and switches: they sit on real walls, on faces of a
+  linked model and on a work plane with an elevation from level (hostMode plane). Use 'wall based' only when every device will sit on a wall of
+  this model. 'Lighting Fixture ceiling based' for downlights, 'Electrical Equipment' (partType panelboard) for panels.
+  Give it a power connector with voltage/poles/apparentLoad, a plan
   symbol when the solid is not readable in plan, types for each rating, and Type Mark. Name families with the prefix 'TPZ '.
 - To read or change an existing family use `edit_family`; for a new rating of an existing type use `set_family_type`.
 - Confirm the plan (views, sheet numbers, families and types) with the engineer before creating them, as with model changes.
