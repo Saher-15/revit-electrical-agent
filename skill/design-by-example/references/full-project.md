@@ -15,15 +15,15 @@ One list in `PROJECT-STATE.md`: question, why it blocks, what was assumed for th
 ## Stages (each ends at a gate; a gate needs an explicit yes)
 | # | Stage | What Claude does | Gate: engineer confirms |
 | --- | --- | --- | --- |
-| S0 | Intake | `get_project_setup`; read instruction documents (`read_project_documents`); draft numbered, sourced rules; list missing documents | the rules (saved only after yes) |
+| S0 | Intake | `get_project_setup`; read instruction documents (`read_project_documents`); draft numbered, sourced rules; list missing documents | the rules (saved with `save_project_rules` only after yes) |
 | S1 | Read the model | snapshot; levels, units, room types, anchors; mirrored plans; what the architect model lacks (heights, furniture) | room-type mapping, unit types, which unit is designed first |
-| S2 | Template | engineer designs one unit by hand, OR for a unit type with no example Claude uses `room-rules.md` + office.json and says so | the template (read back in words) |
-| S3 | Draft design | `learn_design_pattern` → `replicate_design_pattern`, or `propose_electrical_design` for rooms with no example; HTML preview per level | counts, dropped list with reasons, orange list |
-| S4 | Place | `apply_electrical_design` in batches of 5, one floor at a time, working copy only; never Save/Sync | per floor: acceptance after review |
+| S2 | Template | engineer designs one unit by hand, OR for a unit type with no example Claude proposes the defaults of `room-rules.md` + office.json and says so; used only after the engineer says yes (RULES #11) | the template (read back in words) |
+| S3 | Draft design | `learn_design_pattern` → `replicate_design_pattern`, or `propose_electrical_design` for rooms with no example (needs a snapshot; lighting by the lumen method, sockets, switches, emergency lights only); HTML preview per level | counts, dropped list with reasons, orange list |
+| S4 | Place | `apply_electrical_design` with `batchSize: 5` (the tool defaults to 20), one floor at a time, working copy only; never Save/Sync | per floor: acceptance after review |
 | S5 | Circuits and panels | `create_electrical_circuit`, panel schedules; load per apartment and panel | circuit grouping and panel loads (Claude does not size cables or breakers alone) |
-| S6 | Review | `review_model`, the review loop, acceptance metrics, `run-report.json` | errors fixed or accepted one by one |
-| S7 | Drawings | views, tags, schedules, sheets, PNG check by Claude of each sheet | sheets list and stamp (engineer places stamps; `place_stamp` needs explicit approval) |
-| S8 | Handover | BOQ, rules learned (`RULES.proposed.md`), lessons log, report vs targets | the report |
+| S6 | Review | `review_model` (includes circuit load ratio and estimated voltage drop), the review loop, acceptance metrics computed by hand per `review-loop.md` | errors fixed or accepted one by one |
+| S7 | Drawings | views, tags, schedules, sheets, PNG check by Claude of each sheet | sheets list. Stamps: only `place_stamp` with `engineerApproved: true` and an `approvalNote` from the engineer, never on Claude's own initiative |
+| S8 | Handover | BOQ (`generate_boq`), rules learned (written by hand to the project's `RULES.md` after the engineer's yes; `RULES.proposed.md` and `run-report.json` exist only once the shared-folder PR #10 is merged), lessons log, report vs targets | the report |
 
 Floors go in order: one floor accepted before the next starts. A correction applies to every unit built from the rule, then to the rule.
 
@@ -38,7 +38,7 @@ Floors go in order: one floor accepted before the next starts. A correction appl
 Cable and breaker sizing, short-circuit and voltage-drop results, standards interpretation, any value the client's documents do not state, stamps and signatures, what is sent to the client.
 
 ## What is not built yet (say so, do not improvise)
-Load and cable calculations, lighting calculation beyond the lumen method, fire/low-current disciplines beyond placement, Civil 3D adapters, a learned library across projects (needs the shared folder and `RULES.proposed.md`). If the engineer asks for one of these, say it is not available and offer the manual route.
+Cable and breaker sizing, short-circuit (review gives only load ratio and estimated voltage drop), lighting calculation beyond the lumen method, fire/low-current disciplines beyond placement, Civil 3D adapters, a learned library across projects (needs the shared folder and `RULES.proposed.md`, PR #10). If the engineer asks for one of these, say it is not available and offer the manual route.
 
 ## Report at every gate (5 lines)
 Done / placed / failed / open questions / next step. Plus the two acceptance numbers from `review-loop.md` after each reviewed floor.
