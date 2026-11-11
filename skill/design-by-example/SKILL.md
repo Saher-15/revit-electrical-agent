@@ -66,7 +66,11 @@ The sections below are the Revit electrical adapter.
 - Tag provenance in Comments and colour it: blue = derived from the engineer's example, orange = Claude's own design. Full list: `references/session-rules.md`.
 - At the end of a session, extract the rules the conversation produced and propose them to the engineer before saving (see `references/session-rules.md`, "Learning new rules").
 
+## Whole project from scratch
+When the engineer asks for a complete project (or most of it), follow `references/full-project.md`: staged, one gate per stage, a question queue instead of guesses, a state file for resume. Autonomy there is for execution between gates, never for decisions the engineer has not made (always rule 4 and the engineer-ownership rule in RULES.md).
+
 ## References
+- `references/full-project.md`: stages S0-S8 for a whole project, gates, stop conditions, what is not built.
 - `references/reading-architecture.md`: what to read from the architect model, category/family keywords (Hebrew + English), how to get heights.
 - `references/room-rules.md`: default devices and heights per room type when no template exists.
 - `references/hosting-rules.md`: hosting and clean-wall checks, Schedule Level.
