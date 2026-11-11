@@ -1,0 +1,53 @@
+name: Release
+# Push a tag vX.Y.Z -> one zip with both add-ins, the built server, the skill and a sample office.json.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: 8.0.x }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm, cache-dependency-path: mcp-server/server/package-lock.json }
+      - name: Server (tests, build, production deps only)
+        shell: pwsh
+        working-directory: mcp-server/server
+        run: |
+          npm ci
+          npm test
+          npm prune --omit=dev
+      - name: Add-ins 2025 and 2026
+        shell: pwsh
+        working-directory: mcp-server
+        run: |
+          foreach ($y in '25','26') {
+            dotnet build plugin/RevitMCPPlugin.csproj -c "Release R$y"
+            if ($LASTEXITCODE) { exit 1 }
+            dotnet build commandset/RevitMCPCommandSet.csproj -c "Release R$y"
+            if ($LASTEXITCODE) { exit 1 }
+          }
+      - name: Assemble
+        shell: pwsh
+        run: |
+          $out = "dist/revit-electrical-agent-${{ github.ref_name }}"
+          New-Item -ItemType Directory -Force $out | Out-Null
+          foreach ($y in '2025','2026') {
+            Copy-Item "mcp-server/plugin/bin/AddIn $y Release R$($y.Substring(2))" "$out/addin-$y" -Recurse
+          }
+          New-Item -ItemType Directory -Force "$out/server" | Out-Null
+          Copy-Item mcp-server/server/build, mcp-server/server/node_modules, mcp-server/server/package.json "$out/server" -Recurse
+          Copy-Item skill, office-config, docs/deployment.md, mcp-server/CLAUDE-electrical.md $out -Recurse
+          Compress-Archive -Path "$out/*" -DestinationPath "$out.zip"
+      - uses: actions/upload-artifact@v4
+        with: { name: release-zip, path: dist/*.zip }
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: gh release create "${{ github.ref_name }}" (Get-ChildItem dist/*.zip) --generate-notes
