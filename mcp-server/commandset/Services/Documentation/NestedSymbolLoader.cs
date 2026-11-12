@@ -42,6 +42,7 @@ namespace RevitMCPCommandSet.Services.Documentation
         /// <summary>The project family for this nested symbol: the loaded one when it draws the same, else the nested one loaded as "name (host family)".</summary>
         public static Family Ensure(Document doc, Document hostFamilyDoc, Family nested, string hostFamilyName, List<string> notes, bool forceSeparate = false)
         {
+            string nestedName = nested.Name;
             long cat = nested.FamilyCategory?.Id.GetValue() ?? 0;
             Family Find(string name) => new FilteredElementCollector(doc).OfClass(typeof(Family)).Cast<Family>()
                 .FirstOrDefault(f => f.Name == name && (f.FamilyCategory?.Id.GetValue() ?? 0) == cat);
@@ -50,7 +51,7 @@ namespace RevitMCPCommandSet.Services.Documentation
             try
             {
                 nd = hostFamilyDoc.EditFamily(nested);
-                var existing = Find(nested.Name);
+                var existing = Find(nestedName);
                 if (existing == null)
                     return nd.LoadFamily(doc, new FamilyBuildUtils.OverwriteFamilyLoadOptions());
 
@@ -62,21 +63,32 @@ namespace RevitMCPCommandSet.Services.Documentation
                 // forceSeparate: the caller knows the two differ in a way the signature cannot see (e.g. a label bound to a parameter in one and fixed text in the other).
                 if (have == wanted && !forceSeparate) return existing;
 
-                string alt = $"{nested.Name} ({hostFamilyName})";
+                string alt = $"{nestedName} ({hostFamilyName})";
                 foreach (char c in Path.GetInvalidFileNameChars()) alt = alt.Replace(c, '_');
                 var already = Find(alt);
                 if (already != null) return already;
 
-                string path = Path.Combine(Path.GetTempPath(), alt + ".rfa");
-                nd.SaveAs(path, new SaveAsOptions { OverwriteExistingFile = true });
-                var loaded = nd.LoadFamily(doc, new FamilyBuildUtils.OverwriteFamilyLoadOptions());
-                notes.Add(have == wanted ? $"loaded the host's own '{nested.Name}' as '{alt}' (separate copy requested)" : $"'{nested.Name}' in the project draws something else ({have} vs {wanted}); loaded this one as '{alt}'");
-                try { nd.Close(false); nd = null; File.Delete(path); } catch { }
+                // Load the host's copy next to the loaded one without a temp file: free the name, load, then name both.
+                string keep = nestedName + " __keep__";
+                using (var t = new Transaction(doc, "Free symbol family name")) { t.Start(); existing.Name = keep; t.Commit(); }
+                Family loaded = null;
+                try { loaded = nd.LoadFamily(doc, new FamilyBuildUtils.OverwriteFamilyLoadOptions()); }
+                finally
+                {
+                    using (var t = new Transaction(doc, "Name symbol families"))
+                    {
+                        t.Start();
+                        if (loaded != null) loaded.Name = alt;
+                        existing.Name = nestedName;
+                        t.Commit();
+                    }
+                }
+                notes.Add(have == wanted ? $"loaded the host's own '{nestedName}' as '{alt}' (separate copy requested)" : $"'{nestedName}' in the project draws something else ({have} vs {wanted}); loaded this one as '{alt}'");
                 return loaded;
             }
             catch (Exception ex)
             {
-                notes.Add($"'{nested.Name}' could not be loaded into the project: {ex.Message}");
+                notes.Add($"'{nestedName}' could not be loaded into the project: {ex.Message}");
                 return null;
             }
             finally
