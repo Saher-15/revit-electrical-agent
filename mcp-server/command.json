@@ -69,6 +69,11 @@
       "assemblyPath": "RevitMCPCommandSet.dll"
     },
     {
+      "commandName": "rotate_elements",
+      "description": "Rotates existing elements in the active view about their own centre (clockwise degrees)",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
       "commandName": "ai_element_filter",
       "description": "AI element filter for querying elements by criteria",
       "assemblyPath": "RevitMCPCommandSet.dll"
