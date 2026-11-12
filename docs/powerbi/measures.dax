@@ -1,0 +1,18 @@
+-- Measures for table 'Runs' (Power Query "RunReport.pq"). Paste each into New measure.
+Runs = COUNTROWS ( Runs )
+Attempted = SUM ( Runs[attempted] )
+Placed = SUM ( Runs[placed] )
+Failed = SUM ( Runs[failed] )
+Remaining = SUM ( Runs[remaining] )
+-- share of the proposal that was placed (this is run-report "coverage", NOT rollout metric 1)
+Placed % = DIVIDE ( [Placed], [Attempted] )
+Failed % = DIVIDE ( [Failed], [Attempted] )
+Minutes = DIVIDE ( SUM ( Runs[seconds] ), 60 )
+Seconds per element = DIVIDE ( SUM ( Runs[seconds] ), [Attempted] )
+Active users = DISTINCTCOUNT ( Runs[user] )
+Active projects = DISTINCTCOUNT ( Runs[project] )
+-- gate 2 view: runs per user per week
+Runs per user per week = DIVIDE ( [Runs], [Active users] )
+-- target line used on cards: placement drop at most 5% (ROLLOUT-PLAN section 6)
+Drop target = 0.05
+Within target = IF ( [Failed %] <= [Drop target], "OK", "Check" )
