@@ -1,4 +1,5 @@
 import fs from "fs";
+import os from "os";
 import path from "path";
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -77,7 +78,7 @@ export function registerApplyElectricalDesignTool(server: McpServer) {
         const total = proposal.placements.length;
         const reportPath = path.join(path.dirname(args.proposalPath), "run-report.json");
         const run = {
-          at: new Date().toISOString(), proposal: path.basename(args.proposalPath), seconds: Math.round((Date.now() - started) / 1000),
+          at: new Date().toISOString(), user: os.userInfo().username, proposal: path.basename(args.proposalPath), seconds: Math.round((Date.now() - started) / 1000),
           attempted: todo.length, placed, failed: todo.length - placed, proposalTotal: total, remaining,
           coverage: total ? Math.round(((total - remaining) / total) * 1000) / 1000 : 1,
           // moved/dropped and review errors come from review_model, not from this tool.
