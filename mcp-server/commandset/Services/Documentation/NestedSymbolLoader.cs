@@ -50,16 +50,20 @@ namespace RevitMCPCommandSet.Services.Documentation
             Document nd = null;
             try
             {
-                nd = hostFamilyDoc.EditFamily(nested);
                 var existing = Find(nestedName);
                 if (existing == null)
+                {
+                    nd = hostFamilyDoc.EditFamily(nested);
                     return nd.LoadFamily(doc, new FamilyBuildUtils.OverwriteFamilyLoadOptions());
+                }
 
-                string wanted = Signature(nd);
-                Document pd = null;
+                // One family document at a time: both have the same title, and closing one invalidated the other (Revit 2026).
                 string have;
+                Document pd = null;
                 try { pd = doc.EditFamily(existing); have = Signature(pd); }
                 finally { try { pd?.Close(false); } catch { } }
+                nd = hostFamilyDoc.EditFamily(nested);
+                string wanted = Signature(nd);
                 // forceSeparate: the caller knows the two differ in a way the signature cannot see (e.g. a label bound to a parameter in one and fixed text in the other).
                 if (have == wanted && !forceSeparate) return existing;
 
