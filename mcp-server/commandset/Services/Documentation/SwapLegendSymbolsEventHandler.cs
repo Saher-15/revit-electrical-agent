@@ -37,6 +37,8 @@ namespace RevitMCPCommandSet.Services.Documentation
     public class SwapLegendSymbolsEventHandler : IExternalEventHandler, IWaitableExternalEventHandler
     {
         public List<long> ElementIds { get; set; }
+        /// <summary>Legend view to work in; 0 = the active view. Pass it: the active view can change between two calls.</summary>
+        public long ViewId { get; set; }
         public double ClockwiseDegrees { get; set; }
         public bool Apply { get; set; }
         public bool DeleteOriginals { get; set; }
@@ -70,7 +72,8 @@ namespace RevitMCPCommandSet.Services.Documentation
             try
             {
                 var doc = app.ActiveUIDocument.Document;
-                var view = doc.ActiveView;
+                var view = ViewId > 0 ? doc.GetElement(ElectricalUtils.ToElementId(ViewId)) as View : doc.ActiveView;
+                if (view == null) { Error = $"view {ViewId} not found"; return; }
                 double turn = -ClockwiseDegrees * Math.PI / 180.0;
                 var plans = new List<Planned>();
 
@@ -88,7 +91,7 @@ namespace RevitMCPCommandSet.Services.Documentation
                     // The symbol is placed in the active view: an element of another view would land in the wrong legend.
                     if (el.OwnerViewId != view.Id)
                     {
-                        r.Notes.Add($"skipped: the element belongs to view '{(doc.GetElement(el.OwnerViewId) as View)?.Name}' but the active view is '{view.Name}'. Open its view and run again.");
+                        r.Notes.Add($"skipped: the element belongs to view '{(doc.GetElement(el.OwnerViewId) as View)?.Name}' but the target view is '{view.Name}'. Pass its viewId or open its view and run again.");
                         continue;
                     }
                     var bb = el.get_BoundingBox(view);

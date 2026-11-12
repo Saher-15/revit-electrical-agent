@@ -25,6 +25,7 @@ namespace RevitMCPCommandSet.Commands.Documentation
                 if (ids == null || ids.Count == 0)
                     throw new ArgumentException("elementIds must hold at least one legend component id");
                 _handler.ElementIds = ids;
+                _handler.ViewId = parameters["viewId"]?.Value<long>() ?? 0;
                 _handler.ClockwiseDegrees = parameters["clockwiseDegrees"]?.Value<double>() ?? 90;
                 _handler.Apply = parameters["apply"]?.Value<bool>() ?? false;
                 _handler.DeleteOriginals = parameters["deleteOriginals"]?.Value<bool>() ?? true;
