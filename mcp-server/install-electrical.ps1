@@ -21,7 +21,7 @@ foreach ($tool in @("dotnet", "node", "npm", "claude")) {
 
 Write-Host "== 0/3 Building the Revit MCP plugin (ribbon: Open Server / Settings / Open Claude)" -ForegroundColor Cyan
 $config = "Debug R" + $RevitYear.Substring(2)
-dotnet build "$Root\plugin\RevitMCPPlugin.csproj" -c $config
+dotnet build "$Root\plugin\RevitMCPPlugin.csproj" -c $config -p:DeployToRevit=true
 if ($LASTEXITCODE -ne 0) { Write-Host "Plugin build failed." -ForegroundColor Red; exit 1 }
 $pluginDir = "$env:APPDATA\Autodesk\Revit\Addins\$RevitYear\revit_mcp_plugin"
 if (-not (Test-Path "$pluginDir\RevitMCPPlugin.dll")) {
@@ -39,7 +39,7 @@ Get-ChildItem "$env:APPDATA\Autodesk\Revit\Addins\$RevitYear\*.addin" | Where-Ob
 } | ForEach-Object { Write-Host "Removing duplicate manifest $($_.Name)"; Remove-Item $_.FullName -Force }
 
 Write-Host "== 1/3 Building the Revit command set for Revit $RevitYear (Debug R$($RevitYear.Substring(2)) deploys straight into %AppData%\Autodesk\Revit\Addins\$RevitYear)" -ForegroundColor Cyan
-dotnet build "$Root\commandset\RevitMCPCommandSet.csproj" -c $config
+dotnet build "$Root\commandset\RevitMCPCommandSet.csproj" -c $config -p:DeployToRevit=true
 if ($LASTEXITCODE -ne 0) { Write-Host "Command set build failed." -ForegroundColor Red; exit 1 }
 
 $cmdDir = "$env:APPDATA\Autodesk\Revit\Addins\$RevitYear\revit_mcp_plugin\Commands\RevitMCPCommandSet"

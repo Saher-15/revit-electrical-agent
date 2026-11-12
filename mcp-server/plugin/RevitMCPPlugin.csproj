@@ -98,7 +98,7 @@
             <AddinFiles Include="$(RootDir)**\*.*"/>
         </ItemGroup>
         <Message Text="Copy files to Addin folder" Importance="high"/>
-        <Copy SourceFiles="@(AddinFiles)" DestinationFolder="$(AppData)\Autodesk\Revit\Addins\$(RevitVersion)\%(RecursiveDir)" Condition="$(Configuration.Contains('Debug'))"/>
+        <Copy SourceFiles="@(AddinFiles)" DestinationFolder="$(AppData)\Autodesk\Revit\Addins\$(RevitVersion)\%(RecursiveDir)" Condition="'$(DeployToRevit)' == 'true'"/>
     </Target>
 
 </Project>
