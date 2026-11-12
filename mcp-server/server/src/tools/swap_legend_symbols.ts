@@ -11,7 +11,8 @@ export function registerSwapLegendSymbolsTool(server: McpServer) {
       "places them in the active legend view at the component's position rotated by clockwiseDegrees, and deletes the legend " +
       "component (deleteOriginals=false keeps it). Run it with apply=false first, then apply on ONE id and export the view to check.",
     {
-      elementIds: z.array(z.number()).min(1).describe("Legend component ids in the active legend view"),
+      elementIds: z.array(z.number()).min(1).describe("Legend component ids, all in one legend view"),
+      viewId: z.number().optional().describe("That legend view's id. Pass it: without it the active view is used, and the active view can change between calls. Elements of another view are skipped."),
       clockwiseDegrees: z.number().default(90).describe("Clockwise degrees; 90 turns right"),
       apply: z.boolean().default(false).describe("false = read only"),
       deleteOriginals: z.boolean().default(true).describe("Delete each legend component once all its symbols were placed"),

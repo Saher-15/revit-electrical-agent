@@ -84,6 +84,11 @@
       "assemblyPath": "RevitMCPCommandSet.dll"
     },
     {
+      "commandName": "place_view_symbols",
+      "description": "Places loaded 2D symbols (generic annotation / detail item) in a view by id, in mm, optionally rotated",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
       "commandName": "ai_element_filter",
       "description": "AI element filter for querying elements by criteria",
       "assemblyPath": "RevitMCPCommandSet.dll"

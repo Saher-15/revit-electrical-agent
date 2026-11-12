@@ -37,6 +37,8 @@ namespace RevitMCPCommandSet.Services.Documentation
     public class SwapLegendSymbolsEventHandler : IExternalEventHandler, IWaitableExternalEventHandler
     {
         public List<long> ElementIds { get; set; }
+        /// <summary>Legend view to work in; 0 = the active view. Pass it: the active view can change between two calls.</summary>
+        public long ViewId { get; set; }
         public double ClockwiseDegrees { get; set; }
         public bool Apply { get; set; }
         public bool DeleteOriginals { get; set; }
@@ -70,7 +72,8 @@ namespace RevitMCPCommandSet.Services.Documentation
             try
             {
                 var doc = app.ActiveUIDocument.Document;
-                var view = doc.ActiveView;
+                var view = ViewId > 0 ? doc.GetElement(ElectricalUtils.ToElementId(ViewId)) as View : doc.ActiveView;
+                if (view == null) { Error = $"view {ViewId} not found"; return; }
                 double turn = -ClockwiseDegrees * Math.PI / 180.0;
                 var plans = new List<Planned>();
 
@@ -85,6 +88,12 @@ namespace RevitMCPCommandSet.Services.Documentation
                     if (sym == null) { r.Notes.Add("not a legend component of a loadable family"); continue; }
                     r.Family = sym.FamilyName;
                     r.Type = sym.Name;
+                    // The symbol is placed in the active view: an element of another view would land in the wrong legend.
+                    if (el.OwnerViewId != view.Id)
+                    {
+                        r.Notes.Add($"skipped: the element belongs to view '{(doc.GetElement(el.OwnerViewId) as View)?.Name}' but the target view is '{view.Name}'. Pass its viewId or open its view and run again.");
+                        continue;
+                    }
                     var bb = el.get_BoundingBox(view);
                     if (bb == null) { r.Notes.Add("no extent in the active view"); continue; }
                     var centre = (bb.Min + bb.Max) / 2.0;
@@ -147,19 +156,7 @@ namespace RevitMCPCommandSet.Services.Documentation
                     for (int k = 0; k < visible.Count; k++)
                     {
                         var (fi, info, values) = visible[k];
-                        var projFamily = new FilteredElementCollector(doc).OfClass(typeof(Family)).Cast<Family>()
-                            .FirstOrDefault(f => f.Name == fi.Symbol.FamilyName && f.FamilyCategory?.Id.GetValue() == fi.Category.Id.GetValue());
-                        if (projFamily == null)
-                        {
-                            Document nd = null;
-                            try
-                            {
-                                nd = famDoc.EditFamily(fi.Symbol.Family);
-                                projFamily = nd.LoadFamily(doc, new FamilyBuildUtils.OverwriteFamilyLoadOptions());
-                            }
-                            catch (Exception ex) { r.Notes.Add($"'{info.Family}' could not be loaded into the project: {ex.Message}"); }
-                            finally { try { nd?.Close(false); } catch { } }
-                        }
+                        var projFamily = NestedSymbolLoader.Ensure(doc, famDoc, fi.Symbol.Family, sym.FamilyName, r.Notes);
                         if (projFamily == null) continue;
                         var d = new XYZ(pts[k].X - mean.X, pts[k].Y - mean.Y, 0);
                         var rot = new XYZ(d.X * Math.Cos(turn) - d.Y * Math.Sin(turn), d.X * Math.Sin(turn) + d.Y * Math.Cos(turn), 0);
