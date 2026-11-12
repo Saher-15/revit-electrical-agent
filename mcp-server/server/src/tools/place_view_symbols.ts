@@ -17,6 +17,8 @@ export function registerPlaceViewSymbolsTool(server: McpServer) {
             familyName: z.string().describe("Exact family name"),
             typeName: z.string().optional().describe("Type name; default: the family's first type"),
             hostFamilyName: z.string().optional().describe("A loaded host family that nests this symbol: take the symbol from that host. Use it when two hosts nest different symbols under one name; the result's PlacedFamily says which family was placed."),
+            separate: z.boolean().optional().describe("With hostFamilyName: load the host's copy as 'name (host)' even when it looks the same as the loaded family. Use it when the loaded one shows fixed text and the host's shows a parameter (e.g. Label)."),
+            set: z.record(z.string()).optional().describe("Instance parameters to set on the placed symbol, e.g. {\"Label\": \"D-20\"}"),
             xMm: z.number(),
             yMm: z.number(),
             clockwiseDegrees: z.number().default(0),

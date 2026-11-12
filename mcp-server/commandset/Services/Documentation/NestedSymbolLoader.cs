@@ -40,7 +40,7 @@ namespace RevitMCPCommandSet.Services.Documentation
         }
 
         /// <summary>The project family for this nested symbol: the loaded one when it draws the same, else the nested one loaded as "name (host family)".</summary>
-        public static Family Ensure(Document doc, Document hostFamilyDoc, Family nested, string hostFamilyName, List<string> notes)
+        public static Family Ensure(Document doc, Document hostFamilyDoc, Family nested, string hostFamilyName, List<string> notes, bool forceSeparate = false)
         {
             long cat = nested.FamilyCategory?.Id.GetValue() ?? 0;
             Family Find(string name) => new FilteredElementCollector(doc).OfClass(typeof(Family)).Cast<Family>()
@@ -59,7 +59,8 @@ namespace RevitMCPCommandSet.Services.Documentation
                 string have;
                 try { pd = doc.EditFamily(existing); have = Signature(pd); }
                 finally { try { pd?.Close(false); } catch { } }
-                if (have == wanted) return existing;
+                // forceSeparate: the caller knows the two differ in a way the signature cannot see (e.g. a label bound to a parameter in one and fixed text in the other).
+                if (have == wanted && !forceSeparate) return existing;
 
                 string alt = $"{nested.Name} ({hostFamilyName})";
                 foreach (char c in Path.GetInvalidFileNameChars()) alt = alt.Replace(c, '_');
@@ -69,7 +70,7 @@ namespace RevitMCPCommandSet.Services.Documentation
                 string path = Path.Combine(Path.GetTempPath(), alt + ".rfa");
                 nd.SaveAs(path, new SaveAsOptions { OverwriteExistingFile = true });
                 var loaded = nd.LoadFamily(doc, new FamilyBuildUtils.OverwriteFamilyLoadOptions());
-                notes.Add($"'{nested.Name}' in the project draws something else ({have} vs {wanted}); loaded this one as '{alt}'");
+                notes.Add(have == wanted ? $"loaded the host's own '{nested.Name}' as '{alt}' (separate copy requested)" : $"'{nested.Name}' in the project draws something else ({have} vs {wanted}); loaded this one as '{alt}'");
                 try { nd.Close(false); nd = null; File.Delete(path); } catch { }
                 return loaded;
             }

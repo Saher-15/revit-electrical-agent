@@ -12,6 +12,10 @@ namespace RevitMCPCommandSet.Services.Documentation
         public string TypeName { get; set; }
         /// <summary>Optional: a loaded host family that nests this symbol. The symbol is then taken from that host (see NestedSymbolLoader).</summary>
         public string HostFamilyName { get; set; }
+        /// <summary>With HostFamilyName: load the host's copy as "name (host)" even when it looks the same as the loaded family.</summary>
+        public bool Separate { get; set; }
+        /// <summary>Instance parameters to set on the placed symbol (name -> value as text).</summary>
+        public Dictionary<string, string> Set { get; set; }
         public double XMm { get; set; }
         public double YMm { get; set; }
         public double ClockwiseDegrees { get; set; }
@@ -22,6 +26,7 @@ namespace RevitMCPCommandSet.Services.Documentation
         public string FamilyName { get; set; }
         public string PlacedFamily { get; set; }
         public long ElementId { get; set; }
+        public List<string> Notes { get; set; } = new List<string>();
         public string Error { get; set; }
     }
 
@@ -60,6 +65,7 @@ namespace RevitMCPCommandSet.Services.Documentation
 
                 // Before the transaction: symbols that must come out of a host family.
                 var fromHost = new Dictionary<ViewSymbolRequest, ElementId>();
+                var hostNotes = new Dictionary<ViewSymbolRequest, List<string>>();
                 var hostErrors = new Dictionary<ViewSymbolRequest, string>();
                 foreach (var s in Symbols.Where(x => !string.IsNullOrWhiteSpace(x.HostFamilyName)))
                 {
@@ -72,8 +78,8 @@ namespace RevitMCPCommandSet.Services.Documentation
                         var nested = new FilteredElementCollector(hd).OfClass(typeof(Family)).Cast<Family>().FirstOrDefault(f => f.Name == s.FamilyName && Is2D(f));
                         if (nested == null) { hostErrors[s] = $"'{s.HostFamilyName}' nests no 2D symbol family named '{s.FamilyName}'"; continue; }
                         var notes = new List<string>();
-                        var fam = NestedSymbolLoader.Ensure(doc, hd, nested, host.Name, notes);
-                        if (fam == null) hostErrors[s] = string.Join("; ", notes); else fromHost[s] = fam.Id;
+                        var fam = NestedSymbolLoader.Ensure(doc, hd, nested, host.Name, notes, s.Separate);
+                        if (fam == null) hostErrors[s] = string.Join("; ", notes); else { fromHost[s] = fam.Id; hostNotes[s] = notes; }
                     }
                     catch (Exception ex) { hostErrors[s] = ex.Message; }
                     finally { try { hd?.Close(false); } catch { } }
@@ -93,6 +99,7 @@ namespace RevitMCPCommandSet.Services.Documentation
                         var family = fromHost.TryGetValue(s, out var fid) ? doc.GetElement(fid) as Family : families.FirstOrDefault(f => f.Name == s.FamilyName);
                         if (family == null) { r.Error = "no loaded generic annotation or detail item family with this exact name"; continue; }
                         r.PlacedFamily = family.Name;
+                        if (hostNotes.TryGetValue(s, out var hn)) r.Notes.AddRange(hn);
                         using (var st = new SubTransaction(doc))
                         {
                             try
@@ -103,6 +110,8 @@ namespace RevitMCPCommandSet.Services.Documentation
                                 if (!symbol.IsActive) symbol.Activate();
                                 var point = new XYZ(ElectricalUtils.MmToFt(s.XMm), ElectricalUtils.MmToFt(s.YMm), 0);
                                 var inst = doc.Create.NewFamilyInstance(point, symbol, view);
+                                foreach (var kv in s.Set ?? new Dictionary<string, string>())
+                                    if (!ElectricalUtils.TrySetParameter(inst, kv.Key, kv.Value, out string perr)) r.Notes.Add(perr);
                                 if (Math.Abs(s.ClockwiseDegrees) > 1e-9)
                                     ElementTransformUtils.RotateElement(doc, inst.Id, Line.CreateBound(point, point + XYZ.BasisZ), -s.ClockwiseDegrees * Math.PI / 180.0);
                                 st.Commit();
