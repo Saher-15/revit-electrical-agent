@@ -10,6 +10,8 @@ namespace RevitMCPCommandSet.Services.Documentation
     {
         public string FamilyName { get; set; }
         public string TypeName { get; set; }
+        /// <summary>Optional: a loaded host family that nests this symbol. The symbol is then taken from that host (see NestedSymbolLoader).</summary>
+        public string HostFamilyName { get; set; }
         public double XMm { get; set; }
         public double YMm { get; set; }
         public double ClockwiseDegrees { get; set; }
@@ -18,6 +20,7 @@ namespace RevitMCPCommandSet.Services.Documentation
     public class ViewSymbolResult
     {
         public string FamilyName { get; set; }
+        public string PlacedFamily { get; set; }
         public long ElementId { get; set; }
         public string Error { get; set; }
     }
@@ -51,11 +54,32 @@ namespace RevitMCPCommandSet.Services.Documentation
                 if (view == null) { Error = $"view {ViewId} not found"; return; }
                 ViewName = view.Name;
 
-                var families = new FilteredElementCollector(doc).OfClass(typeof(Family)).Cast<Family>()
-                    .Where(f => f.FamilyCategory != null &&
-                        (f.FamilyCategory.Id.GetValue() == (long)BuiltInCategory.OST_GenericAnnotation ||
-                         f.FamilyCategory.Id.GetValue() == (long)BuiltInCategory.OST_DetailComponents))
-                    .ToList();
+                bool Is2D(Family f) => f.FamilyCategory != null &&
+                    (f.FamilyCategory.Id.GetValue() == (long)BuiltInCategory.OST_GenericAnnotation ||
+                     f.FamilyCategory.Id.GetValue() == (long)BuiltInCategory.OST_DetailComponents);
+
+                // Before the transaction: symbols that must come out of a host family.
+                var fromHost = new Dictionary<ViewSymbolRequest, ElementId>();
+                var hostErrors = new Dictionary<ViewSymbolRequest, string>();
+                foreach (var s in Symbols.Where(x => !string.IsNullOrWhiteSpace(x.HostFamilyName)))
+                {
+                    var host = new FilteredElementCollector(doc).OfClass(typeof(Family)).Cast<Family>().FirstOrDefault(f => f.Name == s.HostFamilyName);
+                    if (host == null) { hostErrors[s] = $"host family '{s.HostFamilyName}' is not loaded"; continue; }
+                    Document hd = null;
+                    try
+                    {
+                        hd = doc.EditFamily(host);
+                        var nested = new FilteredElementCollector(hd).OfClass(typeof(Family)).Cast<Family>().FirstOrDefault(f => f.Name == s.FamilyName && Is2D(f));
+                        if (nested == null) { hostErrors[s] = $"'{s.HostFamilyName}' nests no 2D symbol family named '{s.FamilyName}'"; continue; }
+                        var notes = new List<string>();
+                        var fam = NestedSymbolLoader.Ensure(doc, hd, nested, host.Name, notes);
+                        if (fam == null) hostErrors[s] = string.Join("; ", notes); else fromHost[s] = fam.Id;
+                    }
+                    catch (Exception ex) { hostErrors[s] = ex.Message; }
+                    finally { try { hd?.Close(false); } catch { } }
+                }
+
+                var families = new FilteredElementCollector(doc).OfClass(typeof(Family)).Cast<Family>().Where(Is2D).ToList();
 
                 using (var t = new Transaction(doc, "Place view symbols"))
                 {
@@ -65,8 +89,10 @@ namespace RevitMCPCommandSet.Services.Documentation
                     {
                         var r = new ViewSymbolResult { FamilyName = s.FamilyName };
                         Results.Add(r);
-                        var family = families.FirstOrDefault(f => f.Name == s.FamilyName);
+                        if (hostErrors.TryGetValue(s, out var he)) { r.Error = he; continue; }
+                        var family = fromHost.TryGetValue(s, out var fid) ? doc.GetElement(fid) as Family : families.FirstOrDefault(f => f.Name == s.FamilyName);
                         if (family == null) { r.Error = "no loaded generic annotation or detail item family with this exact name"; continue; }
+                        r.PlacedFamily = family.Name;
                         using (var st = new SubTransaction(doc))
                         {
                             try

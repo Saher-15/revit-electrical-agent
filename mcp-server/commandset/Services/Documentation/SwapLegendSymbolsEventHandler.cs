@@ -156,19 +156,7 @@ namespace RevitMCPCommandSet.Services.Documentation
                     for (int k = 0; k < visible.Count; k++)
                     {
                         var (fi, info, values) = visible[k];
-                        var projFamily = new FilteredElementCollector(doc).OfClass(typeof(Family)).Cast<Family>()
-                            .FirstOrDefault(f => f.Name == fi.Symbol.FamilyName && f.FamilyCategory?.Id.GetValue() == fi.Category.Id.GetValue());
-                        if (projFamily == null)
-                        {
-                            Document nd = null;
-                            try
-                            {
-                                nd = famDoc.EditFamily(fi.Symbol.Family);
-                                projFamily = nd.LoadFamily(doc, new FamilyBuildUtils.OverwriteFamilyLoadOptions());
-                            }
-                            catch (Exception ex) { r.Notes.Add($"'{info.Family}' could not be loaded into the project: {ex.Message}"); }
-                            finally { try { nd?.Close(false); } catch { } }
-                        }
+                        var projFamily = NestedSymbolLoader.Ensure(doc, famDoc, fi.Symbol.Family, sym.FamilyName, r.Notes);
                         if (projFamily == null) continue;
                         var d = new XYZ(pts[k].X - mean.X, pts[k].Y - mean.Y, 0);
                         var rot = new XYZ(d.X * Math.Cos(turn) - d.Y * Math.Sin(turn), d.X * Math.Sin(turn) + d.Y * Math.Cos(turn), 0);
