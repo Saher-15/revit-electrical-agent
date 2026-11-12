@@ -85,6 +85,12 @@ namespace RevitMCPCommandSet.Services.Documentation
                     if (sym == null) { r.Notes.Add("not a legend component of a loadable family"); continue; }
                     r.Family = sym.FamilyName;
                     r.Type = sym.Name;
+                    // The symbol is placed in the active view: an element of another view would land in the wrong legend.
+                    if (el.OwnerViewId != view.Id)
+                    {
+                        r.Notes.Add($"skipped: the element belongs to view '{(doc.GetElement(el.OwnerViewId) as View)?.Name}' but the active view is '{view.Name}'. Open its view and run again.");
+                        continue;
+                    }
                     var bb = el.get_BoundingBox(view);
                     if (bb == null) { r.Notes.Add("no extent in the active view"); continue; }
                     var centre = (bb.Min + bb.Max) / 2.0;
