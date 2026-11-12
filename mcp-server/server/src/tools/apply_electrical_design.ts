@@ -1,4 +1,6 @@
 import fs from "fs";
+import os from "os";
+import path from "path";
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { withRevitConnection } from "../utils/ConnectionManager.js";
@@ -44,6 +46,7 @@ export function registerApplyElectricalDesignTool(server: McpServer) {
           .filter((p) => !filter || (roomNames.get(p.roomKey) ?? p.roomKey.toLowerCase()).includes(filter))
           .slice(0, Math.max(1, args.maxElements));
 
+        const started = Date.now();
         let placed = 0;
         const errors: string[] = [];
         const size = Math.max(1, Math.min(50, args.batchSize));
@@ -72,7 +75,19 @@ export function registerApplyElectricalDesignTool(server: McpServer) {
           fs.writeFileSync(appliedPath, JSON.stringify(applied, null, 1), "utf8");
         }
         const remaining = proposal.placements.filter((p) => !applied.some((a) => a.name === p.name && a.elementId > 0)).length;
-        const result = { appliedPath, attempted: todo.length, placed, failed: todo.length - placed, remainingInProposal: remaining, errors: errors.slice(0, 30) };
+        const total = proposal.placements.length;
+        const reportPath = path.join(path.dirname(args.proposalPath), "run-report.json");
+        const run = {
+          at: new Date().toISOString(), user: os.userInfo().username, proposal: path.basename(args.proposalPath), seconds: Math.round((Date.now() - started) / 1000),
+          attempted: todo.length, placed, failed: todo.length - placed, proposalTotal: total, remaining,
+          coverage: total ? Math.round(((total - remaining) / total) * 1000) / 1000 : 1,
+          // moved/dropped and review errors come from review_model, not from this tool.
+        };
+        try {
+          const prior = fs.existsSync(reportPath) ? JSON.parse(fs.readFileSync(reportPath, "utf8")) : [];
+          fs.writeFileSync(reportPath, JSON.stringify([...(Array.isArray(prior) ? prior : []), run], null, 1), "utf8");
+        } catch { /* a report problem must not hide the placement result */ }
+        const result = { appliedPath, reportPath, attempted: todo.length, placed, failed: todo.length - placed, remainingInProposal: remaining, errors: errors.slice(0, 30) };
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `apply_electrical_design failed: ${error instanceof Error ? error.message : String(error)}` }] };

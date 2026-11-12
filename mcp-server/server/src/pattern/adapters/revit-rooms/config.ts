@@ -101,6 +101,7 @@ export const DEFAULT_OFFICE_CONFIG: OfficeConfig = {
 };
 
 export function defaultOfficeConfigPath(): string {
+  if (process.env.REVITCLAUDE_ROOT) return path.join(process.env.REVITCLAUDE_ROOT, "office.json");
   const docs = process.env.REVITCLAUDE_HOME || path.join(os.homedir(), "Documents", "RevitClaude");
   return path.join(docs, "office.json");
 }
