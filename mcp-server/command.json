@@ -239,6 +239,11 @@
       "assemblyPath": "RevitMCPCommandSet.dll"
     },
     {
+      "commandName": "scan_family_library",
+      "description": "Open every .rfa under a folder and report category, placement (host) type and connectors",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
       "commandName": "set_family_type",
       "description": "Duplicate project types and set type parameters",
       "assemblyPath": "RevitMCPCommandSet.dll"

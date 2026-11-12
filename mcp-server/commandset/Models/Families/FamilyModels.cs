@@ -167,3 +167,36 @@ namespace RevitMCPCommandSet.Models.Families
         [JsonProperty("errors")] public List<string> Errors { get; set; } = new List<string>();
     }
 }
+
+namespace RevitMCPCommandSet.Models.Families
+{
+    public class ScanFamilyLibraryRequest
+    {
+        [JsonProperty("folder")] public string Folder { get; set; }
+        [JsonProperty("recursive")] public bool Recursive { get; set; } = true;
+        /// <summary>Also scan Revit backup copies (name.0001.rfa).</summary>
+        [JsonProperty("includeBackups")] public bool IncludeBackups { get; set; }
+        [JsonProperty("skip")] public int Skip { get; set; }
+        [JsonProperty("maxFiles")] public int MaxFiles { get; set; } = 60;
+    }
+
+    public class ScannedFamily
+    {
+        [JsonProperty("file")] public string File { get; set; }
+        [JsonProperty("category", NullValueHandling = NullValueHandling.Ignore)] public string Category { get; set; }
+        [JsonProperty("placement", NullValueHandling = NullValueHandling.Ignore)] public string Placement { get; set; }
+        [JsonProperty("connectors")] public int Connectors { get; set; }
+        [JsonProperty("types")] public int Types { get; set; }
+        [JsonProperty("error", NullValueHandling = NullValueHandling.Ignore)] public string Error { get; set; }
+    }
+
+    public class ScanFamilyLibraryResult
+    {
+        [JsonProperty("folder")] public string Folder { get; set; }
+        [JsonProperty("scanned")] public int Scanned { get; set; }
+        [JsonProperty("total")] public int Total { get; set; }
+        [JsonProperty("nextSkip", NullValueHandling = NullValueHandling.Ignore)] public int? NextSkip { get; set; }
+        [JsonProperty("byPlacement")] public Dictionary<string, int> ByPlacement { get; set; } = new Dictionary<string, int>();
+        [JsonProperty("families")] public List<ScannedFamily> Families { get; set; } = new List<ScannedFamily>();
+    }
+}
