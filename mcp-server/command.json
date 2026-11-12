@@ -69,6 +69,21 @@
       "assemblyPath": "RevitMCPCommandSet.dll"
     },
     {
+      "commandName": "rotate_elements",
+      "description": "Rotates existing elements in the active view about their own centre (clockwise degrees)",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "swap_legend_symbols",
+      "description": "Replaces legend components (which cannot be rotated) with their nested 2D symbols, rotated",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "move_elements",
+      "description": "Moves existing elements by a distance in mm (dx right, dy up)",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
       "commandName": "ai_element_filter",
       "description": "AI element filter for querying elements by criteria",
       "assemblyPath": "RevitMCPCommandSet.dll"
