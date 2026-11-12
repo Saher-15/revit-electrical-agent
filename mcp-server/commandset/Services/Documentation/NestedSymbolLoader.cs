@@ -16,15 +16,27 @@ namespace RevitMCPCommandSet.Services.Documentation
         {
             try
             {
+                // Text with its type's colour: two symbols can differ only in the colour of the same letters.
                 var texts = new FilteredElementCollector(familyDoc).OfClass(typeof(TextElement)).Cast<TextElement>()
-                    .Select(t => (t.Text ?? "").Trim()).Where(t => t.Length > 0).OrderBy(t => t, StringComparer.Ordinal);
-                int curves = new FilteredElementCollector(familyDoc).OfClass(typeof(CurveElement)).GetElementCount();
-                return string.Join("|", texts) + "#" + curves;
+                    .Select(t => (t.Text ?? "").Trim() + "@" + ((familyDoc.GetElement(t.GetTypeId()) as ElementType)?.get_Parameter(BuiltInParameter.LINE_COLOR)?.AsInteger() ?? -1))
+                    .Where(t => !t.StartsWith("@")).OrderBy(t => t, StringComparer.Ordinal);
+                // Lines per line style and colour.
+                var curves = new FilteredElementCollector(familyDoc).OfClass(typeof(CurveElement)).Cast<CurveElement>()
+                    .Select(c => c.LineStyle as GraphicsStyle)
+                    .GroupBy(g => g == null ? "?" : g.Name + "@" + ColourOf(g.GraphicsStyleCategory))
+                    .OrderBy(g => g.Key, StringComparer.Ordinal).Select(g => g.Key + "x" + g.Count());
+                return string.Join("|", texts) + "#" + string.Join("|", curves);
             }
             catch (Exception ex)
             {
                 return "?" + ex.Message;
             }
+        }
+
+        private static string ColourOf(Category c)
+        {
+            try { var k = c?.LineColor; return k == null || !k.IsValid ? "-" : $"{k.Red},{k.Green},{k.Blue}"; }
+            catch { return "-"; }
         }
 
         /// <summary>The project family for this nested symbol: the loaded one when it draws the same, else the nested one loaded as "name (host family)".</summary>
