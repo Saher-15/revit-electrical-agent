@@ -249,6 +249,11 @@
       "assemblyPath": "RevitMCPCommandSet.dll"
     },
     {
+      "commandName": "rehost_to_workplane",
+      "description": "Re-create face-based instances hosted on a linked model on reference planes of this model (keeps params, circuits, tags)",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
       "commandName": "copy_level_elements",
       "description": "Copy a level's electrical elements to other levels, with a dry run",
       "assemblyPath": "RevitMCPCommandSet.dll"
