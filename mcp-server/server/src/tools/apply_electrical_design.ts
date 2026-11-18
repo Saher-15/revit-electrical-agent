@@ -79,6 +79,8 @@ export function registerApplyElectricalDesignTool(server: McpServer) {
         const reportPath = path.join(path.dirname(args.proposalPath), "run-report.json");
         const run = {
           at: new Date().toISOString(), user: os.userInfo().username, proposal: path.basename(args.proposalPath), seconds: Math.round((Date.now() - started) / 1000),
+          startedAt: new Date(started).toISOString(), proposalCreatedAt: proposal.createdAt, snapshot: proposal.snapshot,
+          proposalByRole: proposal.placements.reduce<Record<string, number>>((m, p) => ((m[p.role] = (m[p.role] ?? 0) + 1), m), {}),
           attempted: todo.length, placed, failed: todo.length - placed, proposalTotal: total, remaining,
           coverage: total ? Math.round(((total - remaining) / total) * 1000) / 1000 : 1,
           // moved/dropped and review errors come from review_model, not from this tool.

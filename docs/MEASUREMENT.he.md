@@ -20,11 +20,11 @@ python mcp-server\scripts\weekly_metrics.py %REVITCLAUDE_ROOT% --week 2026-46 --
 
 | # | מדד | מקור | מי רושם | יעד |
 | --- | --- | --- | --- | --- |
-| 1 | כיסוי: נקודות עם כלל / נקודות בדוגמה | אין בשדות run-report. נספר מקובץ ההצעה (proposal) או מפלט `learn_design_pattern`. **כרגע אין עמודה ב-CSV** (ראו שאלות) | המתכנן/ת | 90% ומעלה |
+| 1 | כיסוי: נקודות עם כלל / נקודות בדוגמה | ב-run-report יש `proposalByRole` (כמה בהצעה לכל תפקיד), אבל לא נקודות הדוגמה. נספר מקובץ ההצעה (proposal) או מפלט `learn_design_pattern`. **כרגע אין עמודה ב-CSV** (ראו שאלות) | המתכנן/ת | 90% ומעלה |
 | 2 | איכות מיקום | `run-report.json`: `placed`, `failed`, `remaining`, `proposalTotal`. הזזות ונשמטים (`moved`, `dropped`): מפלט `review_model`, נרשמים ב-`manual.csv` | אוטומטי + המתכנן/ת | נשמט 5% לכל היותר |
 | 3 | עמידה בכללים | `review_model` לפני ואחרי ההצבה: `review_errors_before`, `review_errors_after` | המתכנן/ת | 0 שגיאות |
 | 4 | הסכמה עם המהנדס | הפרש ספירות Claude מול ספירה ידנית של המהנדס, באחוזים (`count_diff_pct`). הפירוט לפי תפקיד וסוג חדר נשאר בהערות המהנדס | המהנדס/ת המאשר/ת | ±10% |
-| 5 | זמן | `run-report.json`: `seconds` (זמן ריצת ההצבה, מצטבר לקומה). זמן ביקורת מהנדס: סטופר, `review_minutes`. זמן snapshot וחלק offline: **לא נשמר היום** (ראו שאלות) | ריצה: אוטומטי. ביקורת: המהנדס/ת | 15 דקות ביקורת לקומה |
+| 5 | זמן | `run-report.json`: `seconds` (זמן ריצת ההצבה, מצטבר לקומה). זמן ביקורת מהנדס: סטופר, `review_minutes`. `run-report.json` שומר עכשיו `startedAt`, `proposalCreatedAt` ו-`snapshot` (נתיב); הפער בין `proposalCreatedAt` ל-`startedAt` כולל גם זמן אנושי, ולכן אינו זמן offline נקי. זמן snapshot עצמו: **לא נשמר** (נמדד בסטופר) | ריצה: אוטומטי. ביקורת: המהנדס/ת | 15 דקות ביקורת לקומה |
 | 6 | עלות | Team dashboard (טוקנים) או API usage, בש"ח, `cost_ils` | מי שיש לו גישה ל-dashboard (ראו שאלות) | ידוע לפני שער שלב 1 |
 
 הערה: השדה `coverage` ב-`run-report.json` הוא חלק ההצעה שהוצב, לא מדד 1 של סעיף 6. ב-Summary הוא מופיע כ"placed % of proposal".
