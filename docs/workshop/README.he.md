@@ -6,7 +6,8 @@
 | חומר | מצב |
 | --- | --- |
 | מצגת "AI in Revit" | קיימת: `knowledge\library\presentations\AI-in-Revit.pptx` (מחוץ לריפו; לא נבדקה כאן) |
-| מודל דוגמה נקי מנתוני לקוח (2 דירות + אדריכלות מקושרת) | **[להכין]** |
+| מודל דוגמה נקי מנתוני לקוח | **[להכין]**, מפרט: `SAMPLE-MODEL-SPEC.he.md` |
+| תסריט מנחה, דף תרגילים, טופס משוב | `FACILITATOR.he.md`, `PARTICIPANT-HANDOUT.he.md`, `FEEDBACK-FORM.he.md` |
 | `office.json` לדוגמה | `office-config/default.json` |
 | מדריך משתמש וcheat sheet | `docs/USER-GUIDE.he.md` |
 | מסמכי התקנה | `docs/deployment.md` |
