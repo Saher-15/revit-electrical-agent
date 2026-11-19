@@ -7,7 +7,8 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { loadSnapshot } from "../analysis/snapshot.js";
 import { learn, replicate, summarize, Pattern, Pt3, Placed } from "../pattern/core.js";
-import { buildUnit, hostingConstraints, toPlacements, UnitSelector } from "../pattern/adapters/revit-rooms/adapter.js";
+import { auditUnit, buildUnit, hostingConstraints, toPlacements, UnitSelector } from "../pattern/adapters/revit-rooms/adapter.js";
+import { measureRun } from "../pattern/adapters/revit-rooms/measure.js";
 import { loadOfficeConfig } from "../pattern/adapters/revit-rooms/config.js";
 import { replicationPreviewHtml } from "../pattern/adapters/revit-rooms/preview.js";
 import { listApartments, detectMirrored } from "../pattern/adapters/revit-rooms/units.js";
@@ -173,6 +174,56 @@ export function registerDesignPatternTools(server: McpServer) {
         for (const k of hostingConstraints(cfg, b.unit.designed.map((d) => d.point))) { const v = k(c, b.unit); if (!v.ok) return text({ room: roomFeat.parent, ...v }); }
         return text({ ok: true, room: roomFeat.parent, roomType: b.roomTypes[roomFeat.parent] });
       } catch (e) { return fail("check_hosting", e); }
+    }
+  );
+
+  server.tool(
+    "audit_hosting",
+    "Runs the hosting checks on devices ALREADY in the model (from a fresh snapshot), whatever placed them: replicate, a copy between floors, a person. Lists every failing check per " +
+      "device: in a door swing or frame, on a window, behind furniture, in a wet zone, on a non-clean wall, a wall device standing free in the room ('floating'), two devices on one spot. " +
+      "Run it after every apply_electrical_design and before the designer's review. Writes <snapshot>_AUDIT.json. Changes nothing.",
+    { snapshotPath: z.string(), ...selector, commentsPrefix: z.string().optional().describe("Judge only devices whose Comments start with this, e.g. 'Claude'; the rest still count as neighbours"),
+      officeConfigPath: z.string().optional(), outputPath: z.string().optional() },
+    async (a) => {
+      try {
+        const cfg = loadOfficeConfig(a.officeConfigPath);
+        const snap = loadSnapshot(a.snapshotPath);
+        const b = buildUnit(snap, a as UnitSelector, cfg);
+        const only = a.commentsPrefix ? (d: { props?: Record<string, unknown> }) => String(d.props?.comments ?? "").startsWith(a.commentsPrefix!) : undefined;
+        const v = auditUnit(b, cfg, only);
+        const judged = only ? b.unit.designed.filter(only).length : b.unit.designed.length;
+        const byCheck = v.reduce<Record<string, number>>((m, x) => { m[x.check] = (m[x.check] ?? 0) + 1; return m; }, {});
+        const devices = new Set(v.map((x) => x.id)).size;
+        const out = a.outputPath ?? a.snapshotPath.replace(/\.json$/i, "") + "_AUDIT.json";
+        fs.writeFileSync(out, JSON.stringify({ kind: "hosting-audit", snapshotPath: a.snapshotPath, createdAt: new Date().toISOString(), judged, devicesWithIssues: devices, byCheck, violations: v }, null, 1), "utf8");
+        return text({ auditPath: out, level: b.levelName, judged, devicesWithIssues: devices, byCheck, violations: v.slice(0, 150), more: Math.max(0, v.length - 150), warnings: b.warnings });
+      } catch (e) { return fail("audit_hosting", e); }
+    }
+  );
+
+  server.tool(
+    "measure_design_run",
+    "Measures how much of Claude's design the designer kept. Compares a snapshot taken right after Claude placed devices with a later snapshot after the designer's review, by element " +
+      "id: Claude's devices (Comments start with the prefix) kept, moved, retyped or deleted, and devices the designer added that Claude missed. Gives the kept share and corrections per 100, " +
+      "per role, and appends one row to measurements.csv next to the later snapshot so runs can be compared over time. Changes nothing in Revit.",
+    { beforeSnapshotPath: z.string().describe("Snapshot right after Claude's run"), afterSnapshotPath: z.string().describe("Snapshot after the designer's review"),
+      levelName: z.string().optional().describe("Only this floor (by elevation)"), prefix: z.string().optional().default("Claude"),
+      moveTolMm: z.number().optional().default(50), label: z.string().optional().describe("What changed in the tools or rules before this run, for the measurements table") },
+    async (a) => {
+      try {
+        const before = loadSnapshot(a.beforeSnapshotPath);
+        const after = loadSnapshot(a.afterSnapshotPath);
+        const r = measureRun(before, after, { levelName: a.levelName, prefix: a.prefix, moveTolMm: a.moveTolMm });
+        const out = a.afterSnapshotPath.replace(/\.json$/i, "") + "_MEASURE.json";
+        fs.writeFileSync(out, JSON.stringify({ kind: "design-run-measure", ...a, createdAt: new Date().toISOString(), ...r }, null, 1), "utf8");
+        const csv = path.join(path.dirname(a.afterSnapshotPath), "measurements.csv");
+        const cell = (s: unknown) => `"${String(s ?? "").replace(/"/g, '""')}"`;
+        if (!fs.existsSync(csv)) fs.writeFileSync(csv, "﻿date,label,before,after,level,claude_placed,kept,moved,retyped,deleted,added_by_designer,kept_share,corrections_per_100\n", "utf8");
+        fs.appendFileSync(csv, [new Date().toISOString().slice(0, 16), cell(a.label), cell(path.basename(a.beforeSnapshotPath)), cell(path.basename(a.afterSnapshotPath)), cell(a.levelName),
+          r.claudePlaced, r.kept, r.moved, r.retyped, r.deleted, r.addedByDesigner, r.keptShare, r.correctionsPer100].join(",") + "\n", "utf8");
+        const { changes, ...summary } = r;
+        return text({ measurePath: out, measurementsCsv: csv, ...summary, changes: changes.slice(0, 100), more: Math.max(0, changes.length - 100) });
+      } catch (e) { return fail("measure_design_run", e); }
     }
   );
 }
