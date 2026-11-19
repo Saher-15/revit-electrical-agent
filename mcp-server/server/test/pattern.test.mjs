@@ -359,3 +359,40 @@ test("wall devices inside the wall thickness (outside every room polygon) are as
   assert.equal(twin.length, 1, "replicated once in the twin bedroom");
   assert.ok(Math.abs(twin[0].point[1] - -100) < 1, "at the same in-wall offset (the target wall line)");
 });
+
+test("audit: a wall device standing free in the room is floating, and the door swing catches it", async () => {
+  const { auditUnit } = await import("../build/pattern/adapters/revit-rooms/adapter.js");
+  const snap = snapshot(true);
+  // Review 2026-11-18: a double socket 480 mm off the wall at 800 mm, inside the mamad door swing.
+  snap.elements.push({ id: 9, category: "ElectricalFixtures", builtInCategory: "OST_ElectricalFixtures", family: "TPZ Socket Double", type: "16A", typeId: 1,
+    xyzMm: [500, 2800, 800], roomKey: "03-MBR", parameters: { Comments: "Claude: derived from 02" } });
+  const b = buildUnit(snap, { roomFilter: "03-" }, cfg);
+  const v = auditUnit(b, cfg);
+  const mine = v.filter((x) => x.id === "9").map((x) => x.check).sort();
+  assert.deepEqual(mine, ["door-swing", "floating"]);
+  assert.equal(v.filter((x) => x.id === "1").length, 0, "a socket on the wall by the bed is fine");
+  // a floor box stays allowed
+  const low = auditUnit(buildUnit({ ...snap, elements: [{ ...snap.elements.at(-1), id: 10, xyzMm: [2000, 1000, 50] }] }, { roomFilter: "03-" }, cfg), cfg);
+  assert.equal(low.filter((x) => x.check === "floating").length, 0);
+  // only Claude's devices are judged when asked
+  assert.deepEqual([...new Set(auditUnit(b, cfg, (d) => String(d.props?.comments ?? "").startsWith("Claude")).map((x) => x.id))], ["9"]);
+});
+
+test("measure: kept, moved, deleted and what the designer added", async () => {
+  const { measureRun } = await import("../build/pattern/adapters/revit-rooms/measure.js");
+  const before = snapshot(true);
+  for (const e of before.elements.slice(0, 3)) e.parameters = { Comments: "Claude: derived from 02" };
+  const after = structuredClone(before);
+  after.elements = after.elements.filter((e) => e.id !== 3);
+  after.elements.find((e) => e.id === 2).xyzMm[0] += 300;
+  after.elements.push({ id: 50, category: "ElectricalFixtures", builtInCategory: "OST_ElectricalFixtures", family: "TPZ Socket Double", type: "16A", typeId: 1, xyzMm: [3900, 3000, 400], parameters: {} });
+  // another floor does not count
+  after.elements.push({ id: 51, category: "ElectricalFixtures", builtInCategory: "OST_ElectricalFixtures", family: "TPZ Socket Double", type: "16A", typeId: 1, xyzMm: [20900, 100, 3400], parameters: {} });
+  const r = measureRun(before, after, { levelName: "03" });
+  assert.equal(r.claudePlaced, 3);
+  assert.deepEqual([r.kept, r.moved, r.deleted, r.addedByDesigner], [1, 1, 1, 1]);
+  assert.equal(r.keptShare, 0.333);
+  assert.equal(r.correctionsPer100, 100);
+  assert.equal(r.changes.find((c) => c.id === 2).movedMm, 300);
+  assert.equal(r.byRole.switch.deleted, 1);
+});

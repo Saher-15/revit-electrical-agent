@@ -93,6 +93,11 @@ Copy this file as `CLAUDE.md` into the folder where you run `claude`.
   with one selector per target apartment (mirrored: true where the plan is mirrored) → report counts per status and every dropped point with
   its reason → only after approval `apply_electrical_design` with the proposal path. Every placement carries the apartment's level as
   Schedule Level. For a single device by hand, `check_hosting` first.
+- After EVERY placement, whatever placed it (apply, a copy between floors, a fix by hand): `export_model_snapshot` → `audit_hosting`
+  (commentsPrefix "Claude") and show the engineer each device with an issue before they review. Never hand over a floor with open
+  'floating', 'door-swing' or 'opening' findings without saying so.
+- When the engineer has reviewed a floor: a new snapshot → `measure_design_run` (before = the snapshot right after your run, after = the
+  reviewed one, label = what changed in the tools or rules since the last run). The row in measurements.csv is how we know a change helped.
 - Never place a device behind a wardrobe, kitchen cabinet run, fridge or boiler at that height, on a glass/curtain/thin wall, in a door
   swing or frame zone, in a window, or in a wet zone; the tools check this, you check the reasons.
 - Office vocabulary and heights come from Documents\RevitClaude\office.json (template: office-config/default.json in the repo); fix

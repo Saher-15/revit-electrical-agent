@@ -371,6 +371,9 @@ function distToPolygon(p: Pt2, poly: Pt2[]): number {
 
 /** Door head + a little: devices above it are on solid wall (a socket over the door). */
 const DOOR_HEAD_MM = 2150;
+/** Roles that belong on a wall: one of these standing free in the room above this height is floating (review 2026-11-18: a socket 480 mm off the wall, in a mamad door swing). */
+const WALL_ROLES = ["socket", "socket_3ph", "switch", "shutter", "data", "tv", "bell", "ac", "panel"];
+const FLOOR_BOX_MAX_MM = 300;
 /** Top of the bathroom wet zones (IEC 60364-7-701). */
 const WET_ZONE_TOP_MM = 2250;
 
@@ -387,6 +390,14 @@ export function hostingConstraints(cfg: OfficeConfig, existing: Pt3[] = []): Con
       const p: Pt2 = [c.point[0], c.point[1]];
       if (pointInPolygon(p as P2, poly as P2[]) || distToPolygon(p, poly) <= Math.max(150, h.wallAssignMaxMm ?? 400)) return { ok: true };
       return { ok: false, check: "room", reason: `outside room ${c.parent}` };
+    },
+    // 0b. a wall-type device standing free in the room (floor boxes stay low; anything higher has lost its wall)
+    (c, u) => {
+      if (c.host !== "level" || !WALL_ROLES.includes(c.role) || c.point[2] - u.baseZ <= FLOOR_BOX_MAX_MM) return { ok: true };
+      const room = u.features.find((f) => f.kind === "room" && f.parent === c.parent);
+      const poly = room?.meta?.polygon as Pt2[] | undefined;
+      const d = poly ? Math.round(distToPolygon([c.point[0], c.point[1]], poly)) : undefined;
+      return { ok: false, check: "floating", reason: `${c.role} at ${Math.round(c.point[2] - u.baseZ)} mm is not on a wall${d !== undefined ? ` (${d} mm from the room edge)` : ""}` };
     },
     // 1. non-clean host wall
     (c, u) => {
@@ -406,20 +417,22 @@ export function hostingConstraints(cfg: OfficeConfig, existing: Pt3[] = []): Con
       }
       return { ok: true };
     },
-    // 3. door frame / leaf and window openings
+    // 3. door frame / leaf and window openings; the door swing applies to every device below the ceiling, on a wall or not
     (c, u) => {
-      if (!wallDevice(c)) return { ok: true };
+      if (c.host === "ceiling") return { ok: true };
+      const onWall = wallDevice(c);
       const p: Pt2 = [c.point[0], c.point[1]];
-      const wall = hostWall(c, u);
+      const wall = onWall ? hostWall(c, u) : undefined;
       for (const f of u.features) {
         if (f.parent !== c.parent || !f.tags?.includes("opening") || !f.dir) continue;
+        if (!onWall && f.kind !== "door") continue;
         // Above the door head the opening is solid wall: the bathroom heater socket sits over the door on purpose (engineer review 2026-11-10).
         if (f.kind === "door" && c.point[2] - u.baseZ > DOOR_HEAD_MM) continue;
         if (wall && f.meta?.wallIndex !== undefined && wall.meta?.wallIndex !== undefined && f.meta.wallIndex !== wall.meta.wallIndex) continue;
         const { along, across } = alongAcross(p, f);
         const [lo, hi] = interval(f);
         const clear = f.kind === "door" ? (c.role === "switch" ? h.clearFromDoorFrame : h.clearFromDoorFrame) : h.clearFromWindow;
-        if (Math.abs(across) <= 300 && along > lo - clear && along < hi + clear) {
+        if (onWall && Math.abs(across) <= 300 && along > lo - clear && along < hi + clear) {
           if (f.kind === "window" && f.zRange && (c.point[2] < f.zRange[0] - 50)) continue; // below the sill is fine
           return { ok: false, check: "opening", reason: `inside ${f.kind} ${f.id} ± ${clear} mm` };
         }
@@ -466,6 +479,27 @@ function hostWall(c: { point: Pt3; parent: string }, u: Unit): Feature | undefin
   }
   return best && best.d <= 300 ? best.f : undefined;
 }
+export interface Violation { id: string; role: string; room: string; roomType: string; check: string; reason: string; point: Pt3; comments?: string }
+
+/**
+ * Runs the hosting checks on devices ALREADY in the model (whatever placed them: replicate, a copy between floors, a person).
+ * Every failing check is listed, not just the first. `only` narrows which devices are judged; all of them still count as neighbours.
+ */
+export function auditUnit(b: BuiltUnit, cfg: OfficeConfig, only?: (d: Designed) => boolean): Violation[] {
+  const out: Violation[] = [];
+  for (const d of b.unit.designed) {
+    if (only && !only(d)) continue;
+    const others = b.unit.designed.filter((x) => x !== d).map((x) => x.point);
+    const c: Candidate = { ruleId: "audit", role: d.role, parent: d.parent, feature: b.unit.features[0], point: d.point, heightMm: d.point[2] - b.unit.baseZ, host: d.host, props: d.props };
+    for (const k of hostingConstraints(cfg, others)) {
+      const v = k(c, b.unit);
+      if (!v.ok) out.push({ id: d.id, role: d.role, room: d.parent, roomType: b.roomTypes[d.parent], check: v.check, reason: v.reason,
+        point: d.point.map((n) => Math.round(n)) as Pt3, comments: d.props?.comments as string | undefined });
+    }
+  }
+  return out;
+}
+
 function distToBox(p: Pt2, min: number[], max: number[]): number {
   const dx = Math.max(min[0] - p[0], 0, p[0] - max[0]);
   const dy = Math.max(min[1] - p[1], 0, p[1] - max[1]);
