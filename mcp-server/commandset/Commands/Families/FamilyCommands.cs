@@ -29,3 +29,13 @@ namespace RevitMCPCommandSet.Commands.Families
         public SetFamilyTypeCommand(UIApplication uiApp) : base(new SetFamilyTypeEventHandler(), uiApp) { }
     }
 }
+
+namespace RevitMCPCommandSet.Commands.Families
+{
+    public class ScanFamilyLibraryCommand : ElectricalCommandBase<ScanFamilyLibraryRequest, ScanFamilyLibraryResult>
+    {
+        public override string CommandName => "scan_family_library";
+        protected override string InputProperty => null;
+        public ScanFamilyLibraryCommand(UIApplication uiApp) : base(new ScanFamilyLibraryEventHandler(), uiApp, 115000) { }
+    }
+}
