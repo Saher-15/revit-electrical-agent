@@ -82,10 +82,10 @@
         <Copy SourceFiles="@(CommandSetBinaries)" DestinationFolder="$(CommandSetPluginDir)$(RevitVersion)\" />
         <Copy SourceFiles="@(CommandJsonFile)" DestinationFolder="$(CommandSetPluginDir)" />
 
-        <!-- Debug only: Copy to Revit Addins folder for local development -->
-        <MakeDir Directories="$(RevitAddinsDir)$(RevitVersion)" Condition="$(Configuration.Contains('Debug'))" />
-        <Copy SourceFiles="@(CommandSetBinaries)" DestinationFolder="$(RevitAddinsDir)$(RevitVersion)\" Condition="$(Configuration.Contains('Debug'))" />
-        <Copy SourceFiles="@(CommandJsonFile)" DestinationFolder="$(RevitAddinsDir)" Condition="$(Configuration.Contains('Debug'))" />
+        <!-- Only with -p:DeployToRevit=true (install-electrical.ps1 passes it): copy into Revit's Addins folder. A plain build must not touch it, because several worktrees build at once and the last one would win. -->
+        <MakeDir Directories="$(RevitAddinsDir)$(RevitVersion)" Condition="'$(DeployToRevit)' == 'true'" />
+        <Copy SourceFiles="@(CommandSetBinaries)" DestinationFolder="$(RevitAddinsDir)$(RevitVersion)\" Condition="'$(DeployToRevit)' == 'true'" />
+        <Copy SourceFiles="@(CommandJsonFile)" DestinationFolder="$(RevitAddinsDir)" Condition="'$(DeployToRevit)' == 'true'" />
     </Target>
 
 </Project>

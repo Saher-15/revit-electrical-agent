@@ -1,0 +1,65 @@
+{
+ "_source": "snapshot קומה 02 של KYM-EL-101-5, 12/11/2026, ספירות לפי שימוש בפועל. הצעה לאישור עביר, לא נכתב ל-office.json החי.",
+ "families": {
+  "socketDouble": {
+   "familyName": "Tpz_3D_EF_Socket 1-ph Under Plaster",
+   "typeName": "16A 2X ח\"ק חד פאזי",
+   "_usedOnFloor02": 31
+  },
+  "socketSingle": {
+   "familyName": "Tpz_3D_EF_Socket 1-ph Under Plaster",
+   "typeName": "16A ח\"ק חד פאזי",
+   "_usedOnFloor02": 88
+  },
+  "socket3Phase": {
+   "familyName": "",
+   "typeName": "",
+   "_note": "לא בשימוש בקומה 02. קיים במודל: Tpz_3D_EF_Vallter 3ph ו-Disconnector Switch 3-Ph-WP. לא נקבע."
+  },
+  "switch1": {
+   "familyName": "Tpz_3D_LD_Lighting buttons WP Under Plaster",
+   "typeName": "מפסק יחיד",
+   "_usedOnFloor02": 51
+  },
+  "switch2way": {
+   "familyName": "Tpz_3D_LD_Lighting buttons WP Under Plaster",
+   "typeName": "מפסק מחליף",
+   "_usedOnFloor02": 46
+  },
+  "shutterSwitch": {
+   "familyName": "Tpz_3D_EF_3 mode switch Under Plaster_new",
+   "typeName": "מפסק תריס שלושה מצבים תחת הטיח",
+   "_usedOnFloor02": 27
+  },
+  "ceilingLight": {
+   "familyName": "Tpz_3D_LF_ Lighting Pointes",
+   "typeName": "נ\"ק תאורה על התקרה",
+   "_usedOnFloor02": 84
+  },
+  "ceilingLightIP44": {
+   "familyName": "Tpz_3D_LF_ Lighting Pointes",
+   "typeName": "נ\"ק תאורה מ\"ם על התקרה",
+   "_usedOnFloor02": 29
+  },
+  "tvOutlet": {
+   "familyName": "Tpz_3D_EF_Socket TV",
+   "typeName": "TV",
+   "_usedOnFloor02": 19
+  },
+  "dataOutlet": {
+   "familyName": "Tpz_3D_CD_Computer point",
+   "typeName": "נק' מחשב תה\"ט",
+   "_usedOnFloor02": 19
+  },
+  "acPoint": {
+   "familyName": "Tpz_3D_EF_Input point",
+   "typeName": "נק' הזנה חד פאזית למ.א",
+   "_usedOnFloor02": 9
+  },
+  "panel": {
+   "familyName": "Tpz_3D_EQ_Electrical Panel",
+   "typeName": "Electrical Panel",
+   "_usedOnFloor02": 6
+  }
+ }
+}

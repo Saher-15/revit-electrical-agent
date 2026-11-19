@@ -67,6 +67,19 @@ test("project rules and documents", async () => {
   assert.match(bad, /not found/);
 });
 
+test("REVITCLAUDE_ROOT: rules go to RULES.proposed.md, RULES.md untouched", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "rc-root-"));
+  process.env.REVITCLAUDE_ROOT = root;
+  try {
+    const r = await call("save_project_rules", { project: "Shared 1", rules: "1. X", proposedBy: "Avir", source: "review 11/11" });
+    assert.equal(r.rulesProposed, true);
+    assert.equal(r.rulesSaved, false);
+    const dir = path.join(root, "Projects", "Shared 1");
+    assert.match(fs.readFileSync(path.join(dir, "RULES.proposed.md"), "utf8"), /Proposed by Avir .* source: review 11\/11[\s\S]*1\. X/);
+    assert.ok(!fs.existsSync(path.join(dir, "RULES.md")));
+  } finally { delete process.env.REVITCLAUDE_ROOT; }
+});
+
 test("place_stamp refuses without approval or sheets, before reaching Revit", async () => {
   const noApproval = await client.callTool({ name: "place_stamp", arguments: { sheetNumbers: ["E-101"], engineerApproved: false, approvedBy: "x", approvalNote: "y", imagePath: "a.png" } });
   assert.ok(noApproval.isError || /refused|literal|true/i.test(noApproval.content[0].text));

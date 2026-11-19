@@ -17,6 +17,7 @@ Built on a fork of [mcp-servers-for-revit](https://github.com/mcp-servers-for-re
 | `office-config/` | Per-office settings template (`default.json`) and how to fill it. |
 | `docs/adapters.md` | How to write a new domain adapter. |
 | `docs/revit-cli.md` | Revit from the command line (pyRevit CLI): install, version detection, batch runs. |
+| `docs/deployment.md` | Rolling the add-in and Claude Code out to every workstation in an office: data path, licensing, silent install, updates, permissions, pilot. |
 
 ## The workflow (Revit rooms adapter)
 
@@ -36,6 +37,8 @@ powershell -ExecutionPolicy Bypass -File .\install-electrical.ps1 -RevitYear 202
 ```
 In Revit: Add-Ins > Revit MCP > Settings > Select All, untick `send_code_to_revit`, Save. Add-Ins > Revit MCP > **Open Claude**.
 Copy `skill/design-by-example` to `%USERPROFILE%\.claude\skills\` and `office-config/default.json` to `Documents\RevitClaude\office.json`.
+
+**After every rebuild** (`npm run build` in `mcp-server/server`, or a merge that changes it): a running MCP server keeps the build it loaded at start, so restart the Claude session (and the Revit chat pane) before using the tools. Otherwise they run the old code without error.
 
 ## Tests
 

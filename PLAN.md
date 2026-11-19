@@ -1,6 +1,6 @@
 # Work plan — from this repo to tests on real models
 
-**בעברית, בקצרה:** תוכנית עבודה מסודרת בשבעה שלבים. כל שלב מגדיר מה נמסר, איך בודקים שהוא גמור (קריטריוני קבלה), ומה הוא דורש ממך. השלב האחרון הוא בדיקות על מודלים אמיתיים של המשרד (KYM-EL-101 בניין 5 ועוד), עם מדדים ברורים להשוואה מול התכנון הידני של המהנדס. סטטוס מתעדכן בקובץ הזה.
+**בעברית, בקצרה:** תוכנית עבודה מסודרת בשבעה שלבים. כל שלב מגדיר מה נמסר, איך בודקים שהוא גמור (קריטריוני קבלה), ומה הוא דורש ממך. השלב האחרון הוא בדיקות על מודלים אמיתיים של המשרד (הפיילוט-EL-101 בניין 5 ועוד), עם מדדים ברורים להשוואה מול התכנון הידני של המהנדס. סטטוס מתעדכן בקובץ הזה.
 
 Legend: ☐ not started · ◐ in progress · ☑ done · ⚠ needs Saher
 
@@ -25,7 +25,7 @@ Needs Saher ⚠: run `install-electrical.ps1 -RevitYear 2025` (and 2026), restar
 
 ## Phase 2 — First replicated floor on the pilot building (◐ 2026-11-09: snapshots 02–05 done; template = Avir's apartment F (686) on 02; replication to 711 on 03 = 58/58 placed in preview; apply pending Saher's approval)
 Deliverables
-1. ☑ Snapshot of KYM-EL-101-5 with the architect link, levels 02–05, `includeArchitecture: true` (local detached copy `KYM-EL-101-5_local.rvt`). Floor 03 holds only 17 devices (the earlier floor-03 design was never saved), so the template is Avir's apartment on 02 and the first target is 03.
+1. ☑ Snapshot of the pilot project with the architect link, levels 02–05, `includeArchitecture: true` (local detached copy `pilot_local.rvt`). Floor 03 holds only 17 devices (the earlier floor-03 design was never saved), so the template is Avir's apartment on 02 and the first target is 03.
 2. ☑ `read_design_unit` on apartment F/686 of 02: 7 rooms, all typed; 60 devices; anchors incl. 15 doors. Lessons folded into the engine: linked rooms carry the architect's level names → floor from door elevations; duplicate rooms/doors/furniture; open kitchens; apartments grouped by door connectivity; wall checks only for wall-hosted devices; finish layers; appliance sockets; rules per room ordinal.
 3. ☑ `learn_design_pattern`: 58 rules from 60 devices (97 %); 2 luminaires without an anchor within 2.5 m. Rule table pending Saher's review.
 4. ◐ `replicate_design_pattern` to apartment 711 on 03 (same type, found by `targetsAuto`): 58/58, 57 placed, 1 moved 100 mm (door frame), 0 dropped. `apply_electrical_design` in the local copy awaits Saher's explicit approval (PC permission check).
@@ -71,7 +71,7 @@ HVAC, plumbing, systems coordination, clash detection and clash resolution, each
 Models (Saher's office, detached copies, never Sync):
 | Model | Use | Template | Targets |
 | --- | --- | --- | --- |
-| KYM-EL-101-5 (building 5) | residential pilot | one apartment of floor 03 (Claude's own floor-03 design exists for comparison; Avir's floors 02/05 are the manual reference) | floors 04–top |
+| pilot project (building 5) | residential pilot | one apartment of floor 03 (Claude's own floor-03 design exists for comparison; Avir's floors 02/05 are the manual reference) | floors 04–top |
 | A second residential project with a different architect | generalisation (other family names, room naming) | one apartment | one floor |
 | An office/commercial floor | non-residential room types (office, meeting, corridor) | one room cluster | the floor |
 

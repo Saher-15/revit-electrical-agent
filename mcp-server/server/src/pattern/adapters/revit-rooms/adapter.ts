@@ -297,7 +297,7 @@ export function buildUnit(snap: ModelSnapshot, sel: UnitSelector, cfg: OfficeCon
   for (const e of snap.elements) {
     if (!e.xyzMm) continue;
     const ep = p2(e.xyzMm);
-    // Wall devices sit inside the wall thickness, outside every room polygon (KYM floor 02: 341 of 655 points). Fall back
+    // Wall devices sit inside the wall thickness, outside every room polygon (pilot floor 02: 341 of 655 points). Fall back
     // to the nearest room within a wall thickness; Revit puts the location point on the host face, so the nearest wins.
     let inWall = false;
     let r = (e.roomKey && rooms.find((x) => x.key === e.roomKey)) || roomOf(ep, rooms);

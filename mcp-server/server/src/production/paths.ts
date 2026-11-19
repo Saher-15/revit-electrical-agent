@@ -10,11 +10,20 @@ export function claudeFolder(...sub: string[]): string {
   return dir;
 }
 
-/** Folder of one project: Documents\RevitClaude\Projects\<name>. */
+/** Shared office folder (REVITCLAUDE_ROOT): holds Projects\ and office.json for all users. Unset = personal Documents\RevitClaude. */
+export function sharedRoot(): string | undefined {
+  return process.env.REVITCLAUDE_ROOT || undefined;
+}
+
+/** Folder of one project: <REVITCLAUDE_ROOT or Documents\RevitClaude>\Projects\<name>. */
 export function projectFolder(project: string): string {
   const safe = safeName(project);
   if (!safe) throw new Error("Project name is empty.");
-  return claudeFolder("Projects", safe);
+  const root = sharedRoot();
+  if (!root) return claudeFolder("Projects", safe);
+  const dir = path.join(root, "Projects", safe);
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
 }
 
 export function safeName(name: string): string {

@@ -1,7 +1,9 @@
 import fs from "fs";
+import os from "os";
 import path from "path";
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { sharedRoot } from "../production/paths.js";
 import { documentText } from "../production/docs.js";
 import { listDocuments, loadProjectData, projectPaths, saveProjectData } from "../production/project.js";
 
@@ -78,7 +80,9 @@ export function registerProjectSetupTools(server: McpServer) {
       "fields are merged into what is stored; send a field with an empty string to clear it.",
     {
       project: z.string(),
-      rules: z.string().optional().describe("Full RULES.md text (replaces the old one; the old one is kept as RULES.bak.md)"),
+      rules: z.string().optional().describe("Full RULES.md text (replaces the old one; the old one is kept as RULES.bak.md). When REVITCLAUDE_ROOT (shared folder) is set, RULES.md is read-only for this tool: the text is appended to RULES.proposed.md instead, for the project lead to approve."),
+      proposedBy: z.string().optional().describe("Who proposes the rules (shared folder only). Default: the Windows user name."),
+      source: z.string().optional().describe("Where the rules come from (shared folder only), e.g. engineer name + date or document + section."),
       fields: z.record(z.string()).optional().describe("Title block values, e.g. {\"Project Name\": \"...\", \"Project Number\": \"...\", \"Client\": \"...\"}"),
       titleBlock: z.string().optional().describe("Title block 'Family: Type' (partial) used for this project's sheets"),
       stampImage: z.string().optional().describe("Full path of the engineer stamp image (PNG/JPG)"),
@@ -86,7 +90,16 @@ export function registerProjectSetupTools(server: McpServer) {
     async (args) => {
       try {
         const p = projectPaths(args.project);
-        if (args.rules !== undefined) {
+        let proposed = false;
+        if (args.rules !== undefined && sharedRoot()) {
+          const head = `
+
+## Proposed by ${args.proposedBy || os.userInfo().username} · ${new Date().toISOString().slice(0, 10)} · source: ${args.source || "(not stated)"}
+
+`;
+          fs.appendFileSync(path.join(p.dir, "RULES.proposed.md"), head + args.rules, "utf8");
+          proposed = true;
+        } else if (args.rules !== undefined) {
           if (fs.existsSync(p.rules)) fs.copyFileSync(p.rules, path.join(p.dir, "RULES.bak.md"));
           fs.writeFileSync(p.rules, args.rules, "utf8");
         }
@@ -94,7 +107,7 @@ export function registerProjectSetupTools(server: McpServer) {
         const data = (args.fields || args.titleBlock || args.stampImage)
           ? saveProjectData(args.project, { fields: args.fields, titleBlock: args.titleBlock, stampImage: args.stampImage })
           : loadProjectData(args.project);
-        return text({ folder: p.dir, rulesSaved: args.rules !== undefined, data });
+        return text({ folder: p.dir, rulesSaved: args.rules !== undefined && !proposed, rulesProposed: proposed, data });
       } catch (error) {
         return text(`save_project_rules failed: ${error instanceof Error ? error.message : String(error)}`);
       }
