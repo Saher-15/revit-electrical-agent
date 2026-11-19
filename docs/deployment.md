@@ -131,6 +131,7 @@ Training: the "AI in Revit" deck (17 slides) fits a 90-minute workshop. Add a on
 - https://support.claude.com/en/articles/13133195-set-up-jit-or-scim-provisioning
 
 ## Release package built by CI (task 13)
+
 ### Release package
 Push a tag `vX.Y.Z` (or run the **Release** workflow by hand). GitHub Actions (Windows runner) runs the server tests, builds the add-in for Revit 2025 and 2026 and the server, and publishes one zip:
 
@@ -152,4 +153,4 @@ Push a tag `vX.Y.Z` (or run the **Release** workflow by hand). GitHub Actions (W
 Set the environment variable `REVITCLAUDE_ROOT` to a network or SharePoint-synced folder. It holds `Projects\<project>\` and `office.json` for all users. Rules the tool learns go to `RULES.proposed.md`; the project lead moves approved ones to `RULES.md`. Unset = personal `Documents\RevitClaude`. Each `apply_electrical_design` run appends to `run-report.json` next to the proposal.
 
 ### Not covered yet
-Code signing of the DLLs, silent install via Intune/GPO (task 15) and the Windows build itself has not run in CI yet.
+Code signing of the DLLs, silent install via Intune/GPO (task 15). The Release workflow ran once on a test tag on 2026-11-18 and succeeded (the zip contents were not opened or installed).
