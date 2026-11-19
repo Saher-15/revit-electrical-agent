@@ -172,6 +172,12 @@ test("hosting checks: behind counter at 300 mm fails, above it passes; door fram
   assert.equal(run("socket", [3950, 3000, 300], "03-MBR").check, "wall"); // east wall is glass
   assert.equal(run("light", [3950, 3000, 2700], "03-MBR").ok, true); // ceiling devices do not care about walls
   assert.notEqual(run("socket", [50, 2600, 2300], "03-MBR").check, "opening"); // heater socket above the door head is fine (review 2026-11-10)
+  // window 1000 wide in the kitchen north wall, sill 1100, head 2100: in the opening fails, under the sill or over the head (shutter motor) passes
+  snap.windows = [{ id: 77, source: "Arch", xyzMm: [6500, 3000, 1100], widthMm: 1000, sillMm: 1100, headMm: 2100, roomKeys: ["03-KIT"] }];
+  const bw = buildUnit(snap, { roomFilter: "03-" }, cfg);
+  const runW = (z) => { const c = { ruleId: "t", role: "socket", parent: "03-KIT", feature: room, point: [6500, 2950, z], heightMm: z }; for (const k of hostingConstraints(cfg, [])) { const v = k(c, bw.unit); if (!v.ok) return v.check; } return "ok"; };
+  assert.equal(runW(1500), "opening");
+  assert.equal(runW(2600), "ok");
 });
 
 test("placement config: forced instance params by family, workset by category, provenance appended", async () => {

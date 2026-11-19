@@ -433,7 +433,7 @@ export function hostingConstraints(cfg: OfficeConfig, existing: Pt3[] = []): Con
         const [lo, hi] = interval(f);
         const clear = f.kind === "door" ? (c.role === "switch" ? h.clearFromDoorFrame : h.clearFromDoorFrame) : h.clearFromWindow;
         if (onWall && Math.abs(across) <= 300 && along > lo - clear && along < hi + clear) {
-          if (f.kind === "window" && f.zRange && (c.point[2] < f.zRange[0] - 50)) continue; // below the sill is fine
+          if (f.kind === "window" && f.zRange && (c.point[2] < f.zRange[0] - 50 || c.point[2] > f.zRange[1] + 50)) continue; // below the sill or above the head is solid wall (shutter motor sockets)
           return { ok: false, check: "opening", reason: `inside ${f.kind} ${f.id} ± ${clear} mm` };
         }
         if (f.kind === "door" && across > 0 && across <= (f.length ?? 900) && along > lo && along < hi && c.point[2] - u.baseZ < 2100)
