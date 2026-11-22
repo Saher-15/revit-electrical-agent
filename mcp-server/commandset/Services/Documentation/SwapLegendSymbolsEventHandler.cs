@@ -177,7 +177,7 @@ namespace RevitMCPCommandSet.Services.Documentation
                     using (var t = new Transaction(doc, "Swap legend components for rotated symbols"))
                     {
                         t.Start();
-                        ElectricalUtils.MakeSilent(t);
+                        var pre = ElectricalUtils.MakeSilent(t);
                         foreach (var p in plans)
                         {
                             try
@@ -210,7 +210,21 @@ namespace RevitMCPCommandSet.Services.Documentation
                                 catch (Exception ex) { g.Key.Notes.Add("original not deleted: " + ex.Message); }
                             }
                         }
-                        t.Commit();
+                        var status = t.Commit();
+                        // Revit can roll back at commit (an error, an element another user owns): nothing placed or deleted survives.
+                        if (status != TransactionStatus.Committed || pre.RolledBack)
+                        {
+                            var why = pre.Messages.Count > 0 ? string.Join(" | ", pre.Messages) : "no failure message from Revit";
+                            foreach (var g in plans.Select(p => p.Result).Distinct())
+                            {
+                                g.PlacedIds.Clear();
+                                g.OriginalDeleted = false;
+                                g.Notes.Add($"ROLLED BACK by Revit ({status}): {why}");
+                            }
+                            Error = $"Revit rolled the change back ({status}): {why}";
+                        }
+                        else if (pre.Messages.Count > 0)
+                            foreach (var g in plans.Select(p => p.Result).Distinct()) g.Notes.AddRange(pre.Messages);
                     }
                 }
             }
