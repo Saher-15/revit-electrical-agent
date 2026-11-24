@@ -78,3 +78,13 @@ namespace RevitMCPCommandSet.Commands.Documentation
         public ExportViewsCommand(UIApplication uiApp) : base(new ExportViewsEventHandler(), uiApp, 115000) { }
     }
 }
+
+namespace RevitMCPCommandSet.Commands.Documentation
+{
+    public class RehostToWorkPlaneCommand : ElectricalCommandBase<RevitMCPCommandSet.Models.Electrical.RehostRequest, RevitMCPCommandSet.Models.Electrical.RehostResult>
+    {
+        public override string CommandName => "rehost_to_workplane";
+        protected override string InputProperty => null;
+        public RehostToWorkPlaneCommand(UIApplication uiApp) : base(new RevitMCPCommandSet.Services.Electrical.RehostToWorkPlaneEventHandler(), uiApp, 115000) { }
+    }
+}
